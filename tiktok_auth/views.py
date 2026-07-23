@@ -18,6 +18,7 @@ from .services import (
     revoke_access,
 )
 from .forms import ContentIdeaForm
+from .sync import sync_tiktok_performance
 from .models import ContentIdea, TikTokAccount
 logger = logging.getLogger(__name__)
 
@@ -519,3 +520,52 @@ def delete_content_idea(request, idea_id):
     )
 
     return redirect("content-planner")
+
+@require_POST
+def sync_performance(request):
+    account = get_connected_account(request)
+
+    if not account:
+        messages.info(
+            request,
+            "Connect your TikTok account first.",
+        )
+        return redirect("home")
+
+    try:
+        access_token = ensure_valid_access_token(account)
+
+        result = sync_tiktok_performance(
+            account=account,
+            access_token=access_token,
+        )
+
+        messages.success(
+            request,
+            (
+                "TikTok performance synchronized successfully. "
+                f"{result['videos_saved']} videos were updated."
+            ),
+        )
+
+    except TikTokAPIError as exc:
+        logger.exception(
+            "TikTok performance synchronization failed."
+        )
+
+        messages.error(
+            request,
+            f"Synchronization failed: {exc}",
+        )
+
+    except Exception:
+        logger.exception(
+            "Unexpected performance synchronization error."
+        )
+
+        messages.error(
+            request,
+            "An unexpected error occurred while synchronizing TikTok data.",
+        )
+
+    return redirect("tiktok-dashboard")

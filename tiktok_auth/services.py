@@ -226,7 +226,7 @@ def get_tiktok_videos(
     max_count: int = 20,
 ) -> dict:
     """
-    Retrieve one page of public TikTok videos.
+    Retrieve one page of the connected user's public videos.
     """
 
     if not access_token:
@@ -275,7 +275,6 @@ def get_tiktok_videos(
         ) from exc
 
     payload = _parse_json_response(response)
-
     api_error = payload.get("error", {})
 
     if not response.ok:
@@ -293,15 +292,12 @@ def get_tiktok_videos(
         )
 
     return payload.get("data", {})
-
 def get_all_tiktok_videos(
     access_token: str,
     max_pages: int = 50,
 ) -> list[dict]:
     """
     Retrieve all available public videos using pagination.
-
-    max_pages prevents an accidental endless loop.
     """
 
     all_videos = []

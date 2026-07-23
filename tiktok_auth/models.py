@@ -101,27 +101,27 @@ class TikTokVideo(models.Model):
         blank=True,
     )
 
-    video_description = models.TextField(
+    description = models.TextField(
+        blank=True,
+    )
+
+    cover_image_url = models.URLField(
+        max_length=1500,
+        blank=True,
+    )
+
+    share_url = models.URLField(
+        max_length=1500,
+        blank=True,
+    )
+
+    embed_link = models.URLField(
+        max_length=1500,
         blank=True,
     )
 
     duration = models.PositiveIntegerField(
         default=0,
-    )
-
-    cover_image_url = models.URLField(
-        max_length=1000,
-        blank=True,
-    )
-
-    embed_link = models.URLField(
-        max_length=1000,
-        blank=True,
-    )
-
-    share_url = models.URLField(
-        max_length=1000,
-        blank=True,
     )
 
     view_count = models.PositiveBigIntegerField(
@@ -150,13 +150,13 @@ class TikTokVideo(models.Model):
     )
 
     class Meta:
-        ordering = ["-posted_at"]
+        ordering = ["-posted_at", "-view_count"]
 
     def __str__(self):
         return self.title or self.video_id
 
     @property
-    def engagement_count(self):
+    def total_engagement(self):
         return (
             self.like_count
             + self.comment_count
@@ -165,11 +165,11 @@ class TikTokVideo(models.Model):
 
     @property
     def engagement_rate(self):
-        if not self.view_count:
+        if self.view_count == 0:
             return 0
 
         return round(
-            self.engagement_count / self.view_count * 100,
+            self.total_engagement / self.view_count * 100,
             2,
         )
 class ContentIdea(models.Model):

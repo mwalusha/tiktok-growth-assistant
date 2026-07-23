@@ -44,6 +44,11 @@ urlpatterns = [
     views.delete_content_idea,
     name="delete-content-idea",
     ),
+    path(
+    "performance/sync/",
+    views.sync_performance,
+    name="sync-tiktok-performance",
+    ),
 
     
 ]

@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from .models import TikTokAccount
 from .models import ContentIdea
-
+from .models import TikTokVideo
 @admin.register(TikTokAccount)
 class TikTokAccountAdmin(admin.ModelAdmin):
     list_display = (
@@ -49,4 +49,32 @@ class ContentIdeaAdmin(admin.ModelAdmin):
         "hook",
         "caption",
         "hashtags",
+    )
+@admin.register(TikTokVideo)
+class TikTokVideoAdmin(admin.ModelAdmin):
+    list_display = (
+        "video_id",
+        "account",
+        "view_count",
+        "like_count",
+        "comment_count",
+        "share_count",
+        "posted_at",
+        "synced_at",
+    )
+
+    search_fields = (
+        "video_id",
+        "title",
+        "description",
+        "account__display_name",
+    )
+
+    list_filter = (
+        "posted_at",
+        "synced_at",
+    )
+
+    readonly_fields = (
+        "synced_at",
     )
