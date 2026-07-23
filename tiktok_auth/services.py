@@ -6,6 +6,7 @@ from django.conf import settings
 TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
 TIKTOK_REVOKE_URL = "https://open.tiktokapis.com/v2/oauth/revoke/"
 TIKTOK_USER_INFO_URL = "https://open.tiktokapis.com/v2/user/info/"
+TIKTOK_VIDEO_LIST_URL = "https://open.tiktokapis.com/v2/video/list/"
 
 
 class TikTokAPIError(Exception):
@@ -119,7 +120,21 @@ def get_tiktok_profile(access_token: str) -> dict:
         response = requests.get(
             TIKTOK_USER_INFO_URL,
             params={
-                "fields": "open_id,display_name,avatar_url",
+                "fields": ",".join(
+    [
+        "open_id",
+        "display_name",
+        "avatar_url",
+        "username",
+        "profile_deep_link",
+        "bio_description",
+        "is_verified",
+        "follower_count",
+        "following_count",
+        "likes_count",
+        "video_count",
+    ]
+),
             },
             headers={
                 "Authorization": f"Bearer {access_token.strip()}",
@@ -203,3 +218,114 @@ def revoke_access(access_token: str) -> None:
         )
 
         raise TikTokAPIError(description)
+
+
+def get_tiktok_videos(
+    access_token: str,
+    cursor: int = 0,
+    max_count: int = 20,
+) -> dict:
+    """
+    Retrieve one page of public TikTok videos.
+    """
+
+    if not access_token:
+        raise TikTokAPIError(
+            "No TikTok access token is available."
+        )
+
+    fields = ",".join(
+        [
+            "id",
+            "create_time",
+            "cover_image_url",
+            "share_url",
+            "video_description",
+            "duration",
+            "title",
+            "embed_link",
+            "like_count",
+            "comment_count",
+            "share_count",
+            "view_count",
+        ]
+    )
+
+    try:
+        response = requests.post(
+            TIKTOK_VIDEO_LIST_URL,
+            params={
+                "fields": fields,
+            },
+            json={
+                "max_count": max_count,
+                "cursor": cursor,
+            },
+            headers={
+                "Authorization": (
+                    f"Bearer {access_token.strip()}"
+                ),
+                "Content-Type": "application/json",
+            },
+            timeout=30,
+        )
+    except requests.RequestException as exc:
+        raise TikTokAPIError(
+            "TikTok could not be reached while loading videos."
+        ) from exc
+
+    payload = _parse_json_response(response)
+
+    api_error = payload.get("error", {})
+
+    if not response.ok:
+        raise TikTokAPIError(
+            api_error.get("message")
+            or "TikTok video request failed."
+        )
+
+    if api_error.get("code") not in (None, "", "ok"):
+        raise TikTokAPIError(
+            api_error.get(
+                "message",
+                "TikTok returned a video-list error.",
+            )
+        )
+
+    return payload.get("data", {})
+
+def get_all_tiktok_videos(
+    access_token: str,
+    max_pages: int = 50,
+) -> list[dict]:
+    """
+    Retrieve all available public videos using pagination.
+
+    max_pages prevents an accidental endless loop.
+    """
+
+    all_videos = []
+    cursor = 0
+
+    for _ in range(max_pages):
+        data = get_tiktok_videos(
+            access_token=access_token,
+            cursor=cursor,
+            max_count=20,
+        )
+
+        videos = data.get("videos", [])
+
+        all_videos.extend(videos)
+
+        if not data.get("has_more"):
+            break
+
+        next_cursor = data.get("cursor")
+
+        if next_cursor is None or next_cursor == cursor:
+            break
+
+        cursor = next_cursor
+
+    return all_videos

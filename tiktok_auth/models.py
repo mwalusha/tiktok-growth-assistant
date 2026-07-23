@@ -1,6 +1,9 @@
 from django.db import models
 
 
+from django.db import models
+
+
 class TikTokAccount(models.Model):
     open_id = models.CharField(
         max_length=255,
@@ -12,14 +15,52 @@ class TikTokAccount(models.Model):
         blank=True,
     )
 
+    username = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
     avatar_url = models.URLField(
         max_length=1000,
         blank=True,
     )
 
+    profile_deep_link = models.URLField(
+        max_length=1000,
+        blank=True,
+    )
+
+    bio_description = models.TextField(
+        blank=True,
+    )
+
+    is_verified = models.BooleanField(
+        default=False,
+    )
+
+    follower_count = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    following_count = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    likes_count = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    video_count = models.PositiveBigIntegerField(
+        default=0,
+    )
+
     access_token = models.TextField()
 
     refresh_token = models.TextField(
+        blank=True,
+    )
+
+    scope = models.TextField(
         blank=True,
     )
 
@@ -30,10 +71,6 @@ class TikTokAccount(models.Model):
 
     refresh_token_expires_at = models.DateTimeField(
         null=True,
-        blank=True,
-    )
-
-    scope = models.TextField(
         blank=True,
     )
 
@@ -48,7 +85,93 @@ class TikTokAccount(models.Model):
     def __str__(self):
         return self.display_name or self.open_id
 
+class TikTokVideo(models.Model):
+    account = models.ForeignKey(
+        TikTokAccount,
+        on_delete=models.CASCADE,
+        related_name="videos",
+    )
 
+    video_id = models.CharField(
+        max_length=255,
+        unique=True,
+    )
+
+    title = models.TextField(
+        blank=True,
+    )
+
+    video_description = models.TextField(
+        blank=True,
+    )
+
+    duration = models.PositiveIntegerField(
+        default=0,
+    )
+
+    cover_image_url = models.URLField(
+        max_length=1000,
+        blank=True,
+    )
+
+    embed_link = models.URLField(
+        max_length=1000,
+        blank=True,
+    )
+
+    share_url = models.URLField(
+        max_length=1000,
+        blank=True,
+    )
+
+    view_count = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    like_count = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    comment_count = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    share_count = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    posted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    synced_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = ["-posted_at"]
+
+    def __str__(self):
+        return self.title or self.video_id
+
+    @property
+    def engagement_count(self):
+        return (
+            self.like_count
+            + self.comment_count
+            + self.share_count
+        )
+
+    @property
+    def engagement_rate(self):
+        if not self.view_count:
+            return 0
+
+        return round(
+            self.engagement_count / self.view_count * 100,
+            2,
+        )
 class ContentIdea(models.Model):
     class Category(models.TextChoices):
         EDUCATIONAL = "educational", "Educational"

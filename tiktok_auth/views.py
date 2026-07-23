@@ -41,7 +41,15 @@ def connect_tiktok(request):
         {
             "client_key": client_key,
             "response_type": "code",
-            "scope": "user.info.basic",
+            "scope": ",".join(
+                [
+                    "user.info.basic",
+                    "video.list",
+                    "user.info.profile",
+                    "user.info.stats",
+                ]
+            ),
+
             "redirect_uri": settings.TIKTOK_REDIRECT_URI.strip(),
             "state": state,
         }
@@ -56,51 +64,75 @@ def connect_tiktok(request):
 
 
 def tiktok_callback(request):
+    """
+    Handle TikTok's OAuth callback.
+
+    This view:
+    1. Validates the OAuth state.
+    2. Exchanges the authorization code for tokens.
+    3. Retrieves the TikTok profile and statistics.
+    4. Creates or updates the TikTokAccount record.
+    5. Stores the connected account ID in the session.
+    """
+
+    oauth_error = request.GET.get("error")
+    oauth_error_description = request.GET.get(
+        "error_description",
+        "",
+    )
+
+    if oauth_error:
+        logger.warning(
+            "TikTok OAuth authorization failed. Error=%s Description=%s",
+            oauth_error,
+            oauth_error_description,
+        )
+
+        messages.error(
+            request,
+            oauth_error_description
+            or "TikTok authorization was cancelled or denied.",
+        )
+
+        return redirect("home")
+
     returned_state = request.GET.get("state")
-    stored_state = request.session.pop(
+    saved_state = request.session.pop(
         "tiktok_oauth_state",
         None,
     )
 
-    if (
-        not returned_state
-        or not stored_state
-        or not secrets.compare_digest(
+    if not saved_state:
+        logger.warning(
+            "TikTok callback received without a saved OAuth state."
+        )
+
+        messages.error(
+            request,
+            "Your TikTok connection session expired. Please try again.",
+        )
+
+        return redirect("home")
+
+    if not returned_state or returned_state != saved_state:
+        logger.warning(
+            "TikTok OAuth state mismatch. Returned=%s",
             returned_state,
-            stored_state,
-        )
-    ):
-        messages.error(
-            request,
-            "TikTok authorization could not be verified.",
-        )
-        return redirect("home")
-
-    oauth_error = request.GET.get("error")
-
-    if oauth_error:
-        description = request.GET.get(
-            "error_description",
-            "Authorization cancelled.",
-        )
-
-        logger.error(
-            "TikTok OAuth returned error=%s description=%s",
-            oauth_error,
-            description,
         )
 
         messages.error(
             request,
-            description,
+            "TikTok connection could not be verified. Please try again.",
         )
 
         return redirect("home")
 
-    code = request.GET.get("code")
+    authorization_code = request.GET.get("code")
 
-    if not code:
-        logger.error("TikTok callback returned no code.")
+    if not authorization_code:
+        logger.warning(
+            "TikTok callback did not contain an authorization code."
+        )
 
         messages.error(
             request,
@@ -110,12 +142,12 @@ def tiktok_callback(request):
         return redirect("home")
 
     try:
-        logger.info("Starting token exchange.")
-
-        token_data = exchange_code_for_token(code)
+        token_data = exchange_code_for_token(
+            authorization_code,
+        )
 
         logger.info(
-            "Token response keys: %s",
+            "TikTok token response received. Keys=%s",
             list(token_data.keys()),
         )
 
@@ -123,15 +155,16 @@ def tiktok_callback(request):
 
         if not access_token:
             raise TikTokAPIError(
-                "TikTok did not return an access token."
+                token_data.get("error_description")
+                or "TikTok did not return an access token."
             )
 
-        logger.info("Loading TikTok profile.")
-
-        profile = get_tiktok_profile(access_token)
+        profile = get_tiktok_profile(
+            access_token,
+        )
 
         logger.info(
-            "Profile response keys: %s",
+            "TikTok profile response received. Keys=%s",
             list(profile.keys()),
         )
 
@@ -139,77 +172,146 @@ def tiktok_callback(request):
 
         if not open_id:
             raise TikTokAPIError(
-                "TikTok did not return open_id."
+                "TikTok did not return an account identifier."
             )
 
         now = timezone.now()
 
         access_expires_in = int(
-            token_data.get("expires_in", 0)
+            token_data.get("expires_in") or 0
         )
 
         refresh_expires_in = int(
-            token_data.get("refresh_expires_in", 0)
+            token_data.get("refresh_expires_in") or 0
         )
 
-        account, _ = TikTokAccount.objects.update_or_create(
+        access_token_expires_at = (
+            now + timedelta(seconds=access_expires_in)
+            if access_expires_in
+            else None
+        )
+
+        refresh_token_expires_at = (
+            now + timedelta(seconds=refresh_expires_in)
+            if refresh_expires_in
+            else None
+        )
+
+        account, created = TikTokAccount.objects.update_or_create(
             open_id=open_id,
             defaults={
                 "display_name": profile.get(
                     "display_name",
                     "",
                 ),
+                "username": profile.get(
+                    "username",
+                    "",
+                ),
                 "avatar_url": profile.get(
                     "avatar_url",
                     "",
+                ),
+                "profile_deep_link": profile.get(
+                    "profile_deep_link",
+                    "",
+                ),
+                "bio_description": profile.get(
+                    "bio_description",
+                    "",
+                ),
+                "is_verified": bool(
+                    profile.get(
+                        "is_verified",
+                        False,
+                    )
+                ),
+                "follower_count": int(
+                    profile.get("follower_count") or 0
+                ),
+                "following_count": int(
+                    profile.get("following_count") or 0
+                ),
+                "likes_count": int(
+                    profile.get("likes_count") or 0
+                ),
+                "video_count": int(
+                    profile.get("video_count") or 0
                 ),
                 "access_token": access_token,
                 "refresh_token": token_data.get(
                     "refresh_token",
                     "",
                 ),
-                "access_token_expires_at": (
-                    now + timedelta(
-                        seconds=access_expires_in
-                    )
-                    if access_expires_in
-                    else None
-                ),
-                "refresh_token_expires_at": (
-                    now + timedelta(
-                        seconds=refresh_expires_in
-                    )
-                    if refresh_expires_in
-                    else None
-                ),
                 "scope": token_data.get(
                     "scope",
                     "",
+                ),
+                "access_token_expires_at": (
+                    access_token_expires_at
+                ),
+                "refresh_token_expires_at": (
+                    refresh_token_expires_at
                 ),
             },
         )
 
         request.session["tiktok_account_id"] = account.pk
 
-        logger.info(
-            "TikTok account connected successfully."
-        )
+        request.session.modified = True
 
-        messages.success(
-            request,
-            "Your TikTok account was connected successfully.",
+        if created:
+            messages.success(
+                request,
+                "Your TikTok account was connected successfully.",
+            )
+        else:
+            messages.success(
+                request,
+                "Your TikTok account connection was updated successfully.",
+            )
+
+        logger.info(
+            "TikTok account saved successfully. Account ID=%s Created=%s",
+            account.pk,
+            created,
         )
 
         return redirect("tiktok-dashboard")
 
-    except Exception:
-        logger.exception(
-            "TikTok callback failed."
+    except TikTokAPIError as exc:
+        logger.warning(
+            "TikTok API error during callback: %s",
+            exc,
         )
 
         messages.error(
             request,
-            "TikTok connection failed. Check Render logs."
+            str(exc),
+        )
+
+        return redirect("home")
+
+    except (TypeError, ValueError) as exc:
+        logger.exception(
+            "TikTok returned invalid numerical or token data."
+        )
+
+        messages.error(
+            request,
+            "TikTok returned invalid account data. Please reconnect.",
+        )
+
+        return redirect("home")
+
+    except Exception:
+        logger.exception(
+            "Unexpected TikTok callback failure."
+        )
+
+        messages.error(
+            request,
+            "An unexpected error occurred while connecting TikTok.",
         )
 
         return redirect("home")
