@@ -1,135 +1,214 @@
 import secrets
+from datetime import timedelta
 from urllib.parse import urlencode
-
-import requests
 
 from django.conf import settings
 from django.contrib import messages
-from django.http import HttpResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from .models import TikTokAccount
-from .services import exchange_code_for_token
+from .services import (
+    TikTokAPIError,
+    exchange_code_for_token,
+    get_tiktok_profile,
+)
+
+
+TIKTOK_AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/"
 
 
 def connect_tiktok(request):
-    """
-    Start the TikTok OAuth authorization flow.
-    """
+    if not settings.TIKTOK_CLIENT_KEY:
+        messages.error(
+            request,
+            "TikTok OAuth is not configured correctly.",
+        )
+        return redirect("home")
 
     state = secrets.token_urlsafe(32)
-
     request.session["tiktok_oauth_state"] = state
 
-    params = {
-        "client_key": settings.TIKTOK_CLIENT_KEY,
-        "response_type": "code",
-        "scope": "user.info.basic",
-        "redirect_uri": settings.TIKTOK_REDIRECT_URI,
-        "state": state,
-    }
-
-    authorization_url = (
-        "https://www.tiktok.com/v2/auth/authorize/"
-        f"?{urlencode(params)}"
+    query = urlencode(
+        {
+            "client_key": settings.TIKTOK_CLIENT_KEY,
+            "response_type": "code",
+            "scope": "user.info.basic",
+            "redirect_uri": settings.TIKTOK_REDIRECT_URI,
+            "state": state,
+        }
     )
 
-    return redirect(authorization_url)
+    return redirect(f"{TIKTOK_AUTHORIZE_URL}?{query}")
 
 
 def tiktok_callback(request):
-    """
-    Handle the response from TikTok.
-    """
-
     returned_state = request.GET.get("state")
-
-    saved_state = request.session.pop(
+    stored_state = request.session.pop(
         "tiktok_oauth_state",
-        None
+        None,
     )
 
-    if not returned_state or returned_state != saved_state:
-        return HttpResponse(
-            "Invalid OAuth state.",
-            status=400
+    if (
+        not returned_state
+        or not stored_state
+        or not secrets.compare_digest(
+            returned_state,
+            stored_state,
         )
+    ):
+        messages.error(
+            request,
+            "TikTok authorization could not be verified. Please try again.",
+        )
+        return redirect("home")
 
-    error = request.GET.get("error")
+    oauth_error = request.GET.get("error")
 
-    if error:
-        error_description = request.GET.get(
+    if oauth_error:
+        description = request.GET.get(
             "error_description",
-            "TikTok authorization failed."
+            "Authorization was cancelled or denied.",
         )
 
-        return HttpResponse(
-            f"{error}: {error_description}",
-            status=400
+        messages.error(
+            request,
+            f"TikTok authorization failed: {description}",
         )
+        return redirect("home")
 
     code = request.GET.get("code")
 
     if not code:
-        return HttpResponse(
-            "No authorization code was returned.",
-            status=400
+        messages.error(
+            request,
+            "TikTok did not return an authorization code.",
         )
+        return redirect("home")
 
-    token_data = exchange_code_for_token(code)
+    try:
+        token_data = exchange_code_for_token(code)
 
-    access_token = token_data["access_token"]
+        access_token = token_data["access_token"]
+        profile = get_tiktok_profile(access_token)
 
-    profile_response = requests.get(
-        "https://open.tiktokapis.com/v2/user/info/",
-        params={
-            "fields": (
-                "open_id,"
-                "display_name,"
-                "avatar_url"
-            )
-        },
-        headers={
-            "Authorization": (
-                f"Bearer {access_token}"
-            )
-        },
-        timeout=30,
+    except KeyError:
+        messages.error(
+            request,
+            "TikTok returned an incomplete token response.",
+        )
+        return redirect("home")
+
+    except TikTokAPIError as exc:
+        messages.error(request, str(exc))
+        return redirect("home")
+
+    now = timezone.now()
+
+    access_expires_in = int(
+        token_data.get("expires_in", 0)
     )
 
-    profile_response.raise_for_status()
+    refresh_expires_in = int(
+        token_data.get("refresh_expires_in", 0)
+    )
 
-    profile_data = profile_response.json()
-
-    user_data = profile_data["data"]["user"]
-
-    TikTokAccount.objects.update_or_create(
-        open_id=user_data["open_id"],
+    account, _ = TikTokAccount.objects.update_or_create(
+        open_id=profile["open_id"],
         defaults={
-            "display_name": user_data.get(
+            "display_name": profile.get(
                 "display_name",
-                ""
+                "",
             ),
-            "avatar_url": user_data.get(
+            "avatar_url": profile.get(
                 "avatar_url",
-                ""
+                "",
             ),
-            "access_token": token_data[
-                "access_token"
-            ],
-            "refresh_token": token_data[
-                "refresh_token"
-            ],
+            "access_token": access_token,
+            "refresh_token": token_data.get(
+                "refresh_token",
+                "",
+            ),
+            "access_token_expires_at": (
+                now + timedelta(seconds=access_expires_in)
+                if access_expires_in
+                else None
+            ),
+            "refresh_token_expires_at": (
+                now + timedelta(seconds=refresh_expires_in)
+                if refresh_expires_in
+                else None
+            ),
             "scope": token_data.get(
                 "scope",
-                ""
+                "",
             ),
         },
     )
+
+    # Keep only the database ID in the browser session.
+    # Never store the access token in the session.
+    request.session["tiktok_account_id"] = account.pk
 
     messages.success(
         request,
-        "TikTok account connected successfully!"
+        "Your TikTok account was connected successfully.",
     )
 
     return redirect("tiktok-dashboard")
+
+
+def dashboard(request):
+    account_id = request.session.get(
+        "tiktok_account_id"
+    )
+
+    if not account_id:
+        messages.info(
+            request,
+            "Connect your TikTok account to open the dashboard.",
+        )
+        return redirect("home")
+
+    account = get_object_or_404(
+        TikTokAccount,
+        pk=account_id,
+    )
+
+    token_expired = bool(
+        account.access_token_expires_at
+        and account.access_token_expires_at
+        <= timezone.now()
+    )
+
+    context = {
+        "account": account,
+        "token_expired": token_expired,
+    }
+
+    return render(
+        request,
+        "tiktok_auth/dashboard.html",
+        context,
+    )
+
+
+@require_POST
+def disconnect_tiktok(request):
+    account_id = request.session.pop(
+        "tiktok_account_id",
+        None,
+    )
+
+    if account_id:
+        TikTokAccount.objects.filter(
+            pk=account_id
+        ).delete()
+
+    messages.success(
+        request,
+        "Your TikTok account was disconnected.",
+    )
+
+    return redirect("home")

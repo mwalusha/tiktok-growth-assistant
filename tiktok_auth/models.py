@@ -4,42 +4,44 @@ from django.db import models
 class TikTokAccount(models.Model):
     open_id = models.CharField(
         max_length=255,
-        unique=True
+        unique=True,
     )
 
     display_name = models.CharField(
         max_length=255,
-        blank=True
+        blank=True,
     )
 
     avatar_url = models.URLField(
-        blank=True
+        blank=True,
     )
 
     access_token = models.TextField()
 
-    refresh_token = models.TextField()
+    refresh_token = models.TextField(
+        blank=True,
+    )
 
     access_token_expires_at = models.DateTimeField(
         null=True,
-        blank=True
+        blank=True,
     )
 
     refresh_token_expires_at = models.DateTimeField(
         null=True,
-        blank=True
+        blank=True,
     )
 
     scope = models.TextField(
-        blank=True
+        blank=True,
     )
 
     created_at = models.DateTimeField(
-        auto_now_add=True
+        auto_now_add=True,
     )
 
     updated_at = models.DateTimeField(
-        auto_now=True
+        auto_now=True,
     )
 
     def __str__(self):

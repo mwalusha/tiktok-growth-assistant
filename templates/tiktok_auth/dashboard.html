@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Dashboard | TikTok Growth Assistant
+    </title>
+
+    <style>
+        :root {
+            --background: #07080d;
+            --surface: #11131b;
+            --surface-soft: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #ffffff;
+            --muted: #a7aab5;
+            --cyan: #25f4ee;
+            --pink: #fe2c55;
+            --green: #4ade80;
+            --yellow: #facc15;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family:
+                Inter,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(
+                    circle at 10% 5%,
+                    rgba(37, 244, 238, 0.1),
+                    transparent 25%
+                ),
+                radial-gradient(
+                    circle at 90% 10%,
+                    rgba(254, 44, 85, 0.11),
+                    transparent 25%
+                ),
+                var(--background);
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        .container {
+            width: min(calc(100% - 36px), 1160px);
+            margin-inline: auto;
+        }
+
+        .navbar {
+            border-bottom: 1px solid var(--border);
+            background: rgba(7, 8, 13, 0.82);
+            backdrop-filter: blur(18px);
+        }
+
+        .nav-content {
+            min-height: 74px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .brand {
+            font-weight: 850;
+            letter-spacing: -0.025em;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .home-link {
+            padding: 11px 15px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .disconnect-form button {
+            padding: 11px 15px;
+            border: 1px solid rgba(254, 44, 85, 0.3);
+            border-radius: 10px;
+            color: #ff9caf;
+            font-size: 14px;
+            font-weight: 750;
+            cursor: pointer;
+            background: rgba(254, 44, 85, 0.08);
+        }
+
+        main {
+            padding: 56px 0 90px;
+        }
+
+        .messages {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 22px;
+        }
+
+        .message {
+            padding: 14px 16px;
+            border: 1px solid rgba(74, 222, 128, 0.2);
+            border-radius: 12px;
+            color: #c9fbd7;
+            background: rgba(74, 222, 128, 0.08);
+        }
+
+        .dashboard-header {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 25px;
+            margin-bottom: 26px;
+        }
+
+        .eyebrow {
+            color: var(--cyan);
+            font-size: 12px;
+            font-weight: 850;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin-top: 9px;
+            font-size: clamp(35px, 6vw, 54px);
+            letter-spacing: -0.05em;
+        }
+
+        .header-description {
+            max-width: 650px;
+            margin-top: 12px;
+            color: var(--muted);
+            line-height: 1.7;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            padding: 10px 13px;
+            border: 1px solid rgba(74, 222, 128, 0.2);
+            border-radius: 999px;
+            color: #b9f8cb;
+            font-size: 13px;
+            font-weight: 750;
+            background: rgba(74, 222, 128, 0.07);
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 14px var(--green);
+        }
+
+        .warning {
+            margin-bottom: 22px;
+            padding: 16px;
+            border: 1px solid rgba(250, 204, 21, 0.25);
+            border-radius: 13px;
+            color: #fff1a8;
+            background: rgba(250, 204, 21, 0.08);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 0.75fr 1.25fr;
+            gap: 20px;
+        }
+
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(255, 255, 255, 0.075),
+                    rgba(255, 255, 255, 0.025)
+                );
+            box-shadow: 0 25px 65px rgba(0, 0, 0, 0.24);
+        }
+
+        .profile-card {
+            padding: 28px;
+        }
+
+        .avatar {
+            width: 105px;
+            height: 105px;
+            display: block;
+            object-fit: cover;
+            border: 4px solid rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+            background: var(--surface);
+        }
+
+        .avatar-placeholder {
+            width: 105px;
+            height: 105px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            color: #07080d;
+            font-size: 30px;
+            font-weight: 900;
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--cyan),
+                    var(--pink)
+                );
+        }
+
+        .profile-card h2 {
+            margin-top: 22px;
+            font-size: 26px;
+            letter-spacing: -0.035em;
+        }
+
+        .connected-label {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .profile-details {
+            display: grid;
+            gap: 15px;
+            margin-top: 28px;
+            padding-top: 22px;
+            border-top: 1px solid var(--border);
+        }
+
+        .detail-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 750;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .detail-value {
+            margin-top: 5px;
+            overflow-wrap: anywhere;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .content-card {
+            padding: 28px;
+        }
+
+        .content-card h2 {
+            font-size: 25px;
+            letter-spacing: -0.035em;
+        }
+
+        .content-card > p {
+            margin-top: 10px;
+            color: var(--muted);
+            line-height: 1.7;
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-top: 26px;
+        }
+
+        .feature {
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: 15px;
+            background: var(--surface-soft);
+        }
+
+        .feature-icon {
+            font-size: 23px;
+        }
+
+        .feature h3 {
+            margin-top: 13px;
+            font-size: 16px;
+        }
+
+        .feature p {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .coming-soon {
+            display: inline-block;
+            margin-top: 13px;
+            padding: 6px 9px;
+            border-radius: 999px;
+            color: #d9d1ff;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            background: rgba(139, 92, 246, 0.13);
+        }
+
+        @media (max-width: 820px) {
+            .dashboard-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 590px) {
+            .brand {
+                font-size: 14px;
+            }
+
+            .home-link {
+                display: none;
+            }
+
+            .feature-list {
+                grid-template-columns: 1fr;
+            }
+
+            .profile-card,
+            .content-card {
+                padding: 21px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container nav-content">
+            <a class="brand" href="/">
+                TikTok Growth Assistant
+            </a>
+
+            <div class="nav-links">
+                <a class="home-link" href="/">
+                    Homepage
+                </a>
+
+                <form
+                    class="disconnect-form"
+                    method="post"
+                    action="{% url 'disconnect-tiktok' %}"
+                >
+                    {% csrf_token %}
+
+                    <button type="submit">
+                        Disconnect
+                    </button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container">
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="message">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <header class="dashboard-header">
+                <div>
+                    <div class="eyebrow">
+                        Creator dashboard
+                    </div>
+
+                    <h1>
+                        Welcome, {{ account.display_name|default:"Creator" }}
+                    </h1>
+
+                    <p class="header-description">
+                        Your TikTok account is connected. This first version
+                        displays profile information authorized through the
+                        user.info.basic scope.
+                    </p>
+                </div>
+
+                <div class="status">
+                    <span class="status-dot"></span>
+                    TikTok connected
+                </div>
+            </header>
+
+            {% if token_expired %}
+                <div class="warning">
+                    Your TikTok access token has expired. Automatic token
+                    refresh will be added in the next step.
+                </div>
+            {% endif %}
+
+            <div class="grid">
+                <section class="card profile-card">
+                    {% if account.avatar_url %}
+                        <img
+                            class="avatar"
+                            src="{{ account.avatar_url }}"
+                            alt="{{ account.display_name }} TikTok avatar"
+                        >
+                    {% else %}
+                        <div class="avatar-placeholder">
+                            {{ account.display_name|default:"T"|slice:":1"|upper }}
+                        </div>
+                    {% endif %}
+
+                    <h2>
+                        {{ account.display_name|default:"TikTok Creator" }}
+                    </h2>
+
+                    <p class="connected-label">
+                        Connected TikTok profile
+                    </p>
+
+                    <div class="profile-details">
+                        <div>
+                            <div class="detail-label">
+                                TikTok Open ID
+                            </div>
+
+                            <div class="detail-value">
+                                {{ account.open_id }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="detail-label">
+                                Authorized scope
+                            </div>
+
+                            <div class="detail-value">
+                                {{ account.scope|default:"user.info.basic" }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="detail-label">
+                                Connected
+                            </div>
+
+                            <div class="detail-value">
+                                {{ account.created_at|date:"F j, Y, g:i A" }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="detail-label">
+                                Last updated
+                            </div>
+
+                            <div class="detail-value">
+                                {{ account.updated_at|date:"F j, Y, g:i A" }}
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card content-card">
+                    <h2>
+                        Your growth workspace
+                    </h2>
+
+                    <p>
+                        Additional creator tools will appear here as the
+                        application receives approval for the required TikTok
+                        scopes.
+                    </p>
+
+                    <div class="feature-list">
+                        <article class="feature">
+                            <div class="feature-icon">📊</div>
+
+                            <h3>Profile analytics</h3>
+
+                            <p>
+                                Review follower, following, likes, and video
+                                totals after the statistics scope is approved.
+                            </p>
+
+                            <span class="coming-soon">
+                                COMING SOON
+                            </span>
+                        </article>
+
+                        <article class="feature">
+                            <div class="feature-icon">🎬</div>
+
+                            <h3>Video performance</h3>
+
+                            <p>
+                                Review your public videos and identify the
+                                content formats producing stronger results.
+                            </p>
+
+                            <span class="coming-soon">
+                                COMING SOON
+                            </span>
+                        </article>
+
+                        <article class="feature">
+                            <div class="feature-icon">💡</div>
+
+                            <h3>Content ideas</h3>
+
+                            <p>
+                                Generate educational and audience-focused
+                                video ideas for your content niche.
+                            </p>
+
+                            <span class="coming-soon">
+                                COMING SOON
+                            </span>
+                        </article>
+
+                        <article class="feature">
+                            <div class="feature-icon">📅</div>
+
+                            <h3>Content planner</h3>
+
+                            <p>
+                                Save ideas, scripts, publishing dates, and
+                                campaign notes in one organized workspace.
+                            </p>
+
+                            <span class="coming-soon">
+                                COMING SOON
+                            </span>
+                        </article>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
