@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .models import TikTokAccount
-
+from .models import ContentIdea
 
 @admin.register(TikTokAccount)
 class TikTokAccountAdmin(admin.ModelAdmin):
@@ -27,4 +27,26 @@ class TikTokAccountAdmin(admin.ModelAdmin):
     exclude = (
         "access_token",
         "refresh_token",
+    )
+@admin.register(ContentIdea)
+class ContentIdeaAdmin(admin.ModelAdmin):
+    list_display = (
+        "title",
+        "account",
+        "category",
+        "status",
+        "planned_date",
+        "created_at",
+    )
+
+    list_filter = (
+        "category",
+        "status",
+    )
+
+    search_fields = (
+        "title",
+        "hook",
+        "caption",
+        "hashtags",
     )

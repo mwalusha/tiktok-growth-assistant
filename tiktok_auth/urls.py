@@ -24,4 +24,26 @@ urlpatterns = [
         views.disconnect_tiktok,
         name="disconnect-tiktok",
     ),
+    path(
+    "content/",
+    views.content_planner,
+    name="content-planner",
+    ),
+    path(
+    "content/new/",
+    views.create_content_idea,
+    name="create-content-idea",
+    ),
+    path(
+    "content/<int:idea_id>/edit/",
+    views.edit_content_idea,
+    name="edit-content-idea",
+    ),
+    path(
+    "content/<int:idea_id>/delete/",
+    views.delete_content_idea,
+    name="delete-content-idea",
+    ),
+
+    
 ]

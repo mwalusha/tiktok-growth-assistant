@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-
+from django.views.decorators.http import require_http_methods
 from .models import TikTokAccount
 from .services import (
     TikTokAPIError,
@@ -17,7 +17,8 @@ from .services import (
     refresh_access_token,
     revoke_access,
 )
-
+from .forms import ContentIdeaForm
+from .models import ContentIdea, TikTokAccount
 logger = logging.getLogger(__name__)
 
 TIKTOK_AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/"
@@ -266,3 +267,153 @@ def disconnect_tiktok(request):
     )
 
     return redirect("home")
+
+def get_connected_account(request):
+    account_id = request.session.get("tiktok_account_id")
+
+    if not account_id:
+        return None
+
+    return TikTokAccount.objects.filter(
+        pk=account_id
+    ).first()
+
+
+def content_planner(request):
+    account = get_connected_account(request)
+
+    if not account:
+        messages.info(
+            request,
+            "Connect your TikTok account before using the content planner.",
+        )
+        return redirect("home")
+
+    ideas = ContentIdea.objects.filter(
+        account=account
+    )
+
+    status_filter = request.GET.get("status", "").strip()
+
+    if status_filter:
+        ideas = ideas.filter(
+            status=status_filter
+        )
+
+    return render(
+        request,
+        "tiktok_auth/content_planner.html",
+        {
+            "account": account,
+            "ideas": ideas,
+            "status_filter": status_filter,
+            "status_choices": ContentIdea.Status.choices,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def create_content_idea(request):
+    account = get_connected_account(request)
+
+    if not account:
+        messages.info(
+            request,
+            "Connect your TikTok account first.",
+        )
+        return redirect("home")
+
+    if request.method == "POST":
+        form = ContentIdeaForm(request.POST)
+
+        if form.is_valid():
+            content_idea = form.save(commit=False)
+            content_idea.account = account
+            content_idea.save()
+
+            messages.success(
+                request,
+                "Content idea saved successfully.",
+            )
+
+            return redirect("content-planner")
+    else:
+        form = ContentIdeaForm()
+
+    return render(
+        request,
+        "tiktok_auth/content_idea_form.html",
+        {
+            "form": form,
+            "page_title": "Create content idea",
+            "button_text": "Save idea",
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def edit_content_idea(request, idea_id):
+    account = get_connected_account(request)
+
+    if not account:
+        return redirect("home")
+
+    idea = get_object_or_404(
+        ContentIdea,
+        pk=idea_id,
+        account=account,
+    )
+
+    if request.method == "POST":
+        form = ContentIdeaForm(
+            request.POST,
+            instance=idea,
+        )
+
+        if form.is_valid():
+            form.save()
+
+            messages.success(
+                request,
+                "Content idea updated successfully.",
+            )
+
+            return redirect("content-planner")
+    else:
+        form = ContentIdeaForm(
+            instance=idea
+        )
+
+    return render(
+        request,
+        "tiktok_auth/content_idea_form.html",
+        {
+            "form": form,
+            "page_title": "Edit content idea",
+            "button_text": "Save changes",
+            "idea": idea,
+        },
+    )
+
+
+@require_POST
+def delete_content_idea(request, idea_id):
+    account = get_connected_account(request)
+
+    if not account:
+        return redirect("home")
+
+    idea = get_object_or_404(
+        ContentIdea,
+        pk=idea_id,
+        account=account,
+    )
+
+    idea.delete()
+
+    messages.success(
+        request,
+        "Content idea deleted.",
+    )
+
+    return redirect("content-planner")
