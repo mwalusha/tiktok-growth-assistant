@@ -36,6 +36,7 @@ DEBUG = os.getenv(
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
+    "tiktok-growth-assistant-4.onrender.com",
 ]
 
 
