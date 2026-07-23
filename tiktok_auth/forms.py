@@ -75,8 +75,10 @@ class ContentIdeaForm(forms.ModelForm):
 
         fields = [
             "title",
+            "topic",
             "category",
             "hook",
+            "concept",
             "script",
             "caption",
             "hashtags",
@@ -97,6 +99,12 @@ class ContentIdeaForm(forms.ModelForm):
             "hook": forms.TextInput(
                 attrs={
                     "placeholder": "Example: Most students lose marks because of this mistake...",
+                }
+            ),
+            "concept": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                    "placeholder": "Describe the video structure and result.",
                 }
             ),
             "script": forms.Textarea(

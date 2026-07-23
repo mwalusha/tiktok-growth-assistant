@@ -19,6 +19,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .analytics import (
+    calculate_balanced_video_scores,
+    confidence_for_evidence,
     get_account_analytics,
     get_daily_growth,
 )
@@ -285,6 +287,16 @@ class ContentCoachViewTests(TestCase):
         )
 
     def test_generate_endpoint_saves_complete_batch(self):
+        TikTokVideo.objects.create(
+            account=self.account,
+            video_id="coach-history",
+            title="Hair transformation",
+            description="Before and after #transformation",
+            duration=18,
+            view_count=1000,
+            like_count=100,
+            posted_at=timezone.now(),
+        )
         response = self.client.post(
             reverse("generate-content-ideas")
         )
@@ -302,7 +314,7 @@ class ContentCoachViewTests(TestCase):
         self.assertTrue(saved.generation_reason)
         self.assertEqual(
             saved.suggested_length,
-            "15–20 seconds",
+            "11–20 seconds",
         )
 
 
@@ -1312,6 +1324,33 @@ class PersonalizedIdeaGeneratorTests(TestCase):
 
     def test_saves_personalized_ideas_and_avoids_duplicate_titles(self):
         analytics = {
+            "videos_analyzed": 8,
+            "average_views": 1000,
+            "best_topic": {
+                "topic": "transformation",
+                "video_count": 5,
+                "average_views": 2400,
+                "confidence": "High confidence",
+            },
+            "best_video_length": {
+                "label": "11–20 seconds",
+                "video_count": 5,
+            },
+            "best_posting_day": {
+                "day": "Friday",
+                "video_count": 4,
+            },
+            "best_posting_time": {
+                "time": "7 PM–9 PM",
+                "video_count": 4,
+            },
+            "top_videos": [],
+            "weak_topics": [{"topic": "product review"}],
+            "last_three_topics": [
+                "transformation",
+                "transformation",
+                "transformation",
+            ],
             "summary": {
                 "top_topic": "transformation",
                 "best_length": "11–20 seconds",
@@ -1327,10 +1366,37 @@ class PersonalizedIdeaGeneratorTests(TestCase):
         )
 
         self.assertEqual(len(first), 5)
-        self.assertEqual(len(second), 1)
+        self.assertEqual(len(second), 2)
         self.assertTrue(all(idea.is_generated for idea in first))
         self.assertEqual(first[0].suggested_posting_day, "Friday")
         self.assertEqual(first[0].suggested_duration, "11–20 seconds")
+        self.assertIn("Based on 5 transformation videos", first[0].generation_reason)
+        self.assertEqual(first[0].confidence, "High confidence")
+
+    def test_balanced_score_does_not_overvalue_tiny_high_rate_video(self):
+        large = TikTokVideo.objects.create(
+            account=self.account,
+            video_id="large",
+            view_count=48000,
+            like_count=5200,
+            comment_count=310,
+            share_count=490,
+        )
+        TikTokVideo.objects.create(
+            account=self.account,
+            video_id="tiny",
+            view_count=50,
+            like_count=10,
+        )
+        ranking = calculate_balanced_video_scores(
+            list(self.account.videos.all())
+        )
+        self.assertEqual(ranking[0]["video"], large)
+
+    def test_confidence_uses_evidence_count(self):
+        self.assertEqual(confidence_for_evidence(1), "Limited data")
+        self.assertEqual(confidence_for_evidence(3), "Medium confidence")
+        self.assertEqual(confidence_for_evidence(5), "High confidence")
 
 
 class ContentIdeaStatusViewTests(TestCase):

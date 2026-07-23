@@ -41,6 +41,7 @@ class ContentIdeaAdmin(admin.ModelAdmin):
         "title",
         "account",
         "category",
+        "topic",
         "status",
         "is_generated",
         "planned_date",
@@ -58,6 +59,7 @@ class ContentIdeaAdmin(admin.ModelAdmin):
         "hook",
         "caption",
         "hashtags",
+        "topic",
     )
 @admin.register(TikTokVideo)
 class TikTokVideoAdmin(admin.ModelAdmin):

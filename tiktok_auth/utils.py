@@ -24,14 +24,29 @@ TOPIC_KEYWORDS = {
     "tutorial": (
         "tutorial", "how to", "step by step", "guide", "tips",
     ),
+    "client reaction": (
+        "reaction", "first look", "saw the result", "mirror reveal",
+    ),
     "client story": (
         "client", "appointment", "customer", "she wanted", "he wanted",
     ),
-    "product": (
+    "storytelling": (
+        "story time", "storytime", "what happened", "lesson learned",
+    ),
+    "product review": (
         "product", "review", "unboxing", "recommend", "routine",
     ),
     "behind the scenes": (
         "behind the scenes", "bts", "day in the life", "process",
+    ),
+    "lifestyle": (
+        "lifestyle", "morning routine", "weekly vlog", "get ready with me",
+    ),
+    "trend": (
+        "trend", "challenge", "viral sound", "duet", "stitch",
+    ),
+    "question and answer": (
+        "q&a", "question", "answering", "you asked", "faq",
     ),
 }
 

@@ -634,6 +634,13 @@
                                 {{ idea.title }}
                             </h2>
 
+                            {% if idea.topic %}
+                                <p class="empty-text">
+                                    <strong>Topic:</strong> {{ idea.topic|title }}
+                                    {% if idea.confidence %}· {{ idea.confidence }}{% endif %}
+                                </p>
+                            {% endif %}
+
                             {% if idea.hook %}
                                 <div class="hook">
                                     <strong>Hook:</strong>
@@ -642,6 +649,13 @@
                             {% else %}
                                 <p class="empty-text">
                                     No opening hook has been added yet.
+                                </p>
+                            {% endif %}
+
+                            {% if idea.concept %}
+                                <p class="empty-text">
+                                    <strong>How to structure it:</strong>
+                                    {{ idea.concept }}
                                 </p>
                             {% endif %}
 
@@ -661,8 +675,22 @@
 
                             {% if idea.suggested_posting_time %}
                                 <p class="empty-text">
-                                    <strong>Suggested posting time:</strong>
+                                    <strong>Suggested posting window:</strong>
+                                    {% if idea.suggested_posting_day %}
+                                        {{ idea.suggested_posting_day }} between
+                                    {% endif %}
                                     {{ idea.suggested_posting_time }}
+                                </p>
+                            {% endif %}
+
+                            {% if idea.source_video %}
+                                <p class="empty-text">
+                                    <strong>Based on:</strong>
+                                    {% if idea.source_video.share_url %}
+                                        <a href="{{ idea.source_video.share_url }}" target="_blank" rel="noopener">
+                                    {% endif %}
+                                    {{ idea.source_video.title|default:idea.source_video.description|default:idea.source_video.video_id|truncatechars:70 }}
+                                    {% if idea.source_video.share_url %}</a>{% endif %}
                                 </p>
                             {% endif %}
 

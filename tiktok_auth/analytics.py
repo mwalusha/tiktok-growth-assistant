@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import timedelta
-from statistics import mean
+from statistics import mean, median, pstdev
 
 from django.db.models import Avg, Count, Max, Sum
 from django.utils import timezone
@@ -24,9 +24,19 @@ def classify_video_length(duration: int) -> str:
         return "11–20 seconds"
     if duration <= 30:
         return "21–30 seconds"
+    if duration <= 45:
+        return "31–45 seconds"
     if duration <= 60:
-        return "31–60 seconds"
-    return "61+ seconds"
+        return "46–60 seconds"
+    return "More than 60 seconds"
+
+
+def confidence_for_evidence(sample_size: int) -> str:
+    if sample_size >= 5:
+        return "High confidence"
+    if sample_size >= 3:
+        return "Medium confidence"
+    return "Limited data"
 
 
 def build_video_metrics(video: TikTokVideo) -> dict:
@@ -49,14 +59,20 @@ def _performance_rows(groups, label_key):
     for label, videos in groups.items():
         if not videos:
             continue
-        rows.append(
-            {
+        views = [video.view_count for video in videos]
+        view_consistency = (
+            max(0.0, 100 - safe_percentage(pstdev(views), mean(views)))
+            if len(views) > 1 and mean(views)
+            else 100.0
+        )
+        row = {
                 label_key: label,
                 "label": label,
                 "video_count": len(videos),
                 "average_views": round(
-                    mean(video.view_count for video in videos), 2
+                    mean(views), 2
                 ),
+                "median_views": round(median(views), 2),
                 "average_engagement_rate": round(
                     mean(
                         safe_percentage(
@@ -66,13 +82,25 @@ def _performance_rows(groups, label_key):
                     ),
                     2,
                 ),
+                "consistency_score": round(view_consistency, 2),
+                "confidence": confidence_for_evidence(len(videos)),
             }
+        reliability = min(len(videos) / 5, 1)
+        row["evidence_score"] = round(
+            (
+                row["average_views"] * 0.45
+                + row["median_views"] * 0.35
+                + row["average_engagement_rate"] * 0.20
+            )
+            * (0.5 + 0.5 * reliability),
+            2,
         )
+        rows.append(row)
     return sorted(
         rows,
         key=lambda row: (
-            row["average_views"],
-            row["average_engagement_rate"],
+            row["evidence_score"],
+            row["consistency_score"],
             row["video_count"],
         ),
         reverse=True,
@@ -98,13 +126,19 @@ def calculate_day_performance(videos) -> list[dict]:
 
 
 def _time_window(hour: int) -> str:
-    if 5 <= hour < 12:
-        return "Morning"
-    if 12 <= hour < 17:
-        return "Afternoon"
-    if 17 <= hour < 22:
-        return "Evening"
-    return "Late night"
+    if 6 <= hour <= 9:
+        return "6 AM–9 AM"
+    if 10 <= hour <= 12:
+        return "10 AM–12 PM"
+    if 13 <= hour <= 15:
+        return "1 PM–3 PM"
+    if 16 <= hour <= 18:
+        return "4 PM–6 PM"
+    if 19 <= hour <= 21:
+        return "7 PM–9 PM"
+    if 22 <= hour <= 23:
+        return "10 PM–11 PM"
+    return "12 AM–5 AM"
 
 
 def calculate_time_performance(videos) -> list[dict]:
@@ -125,6 +159,41 @@ def calculate_topic_performance(videos) -> list[dict]:
         )
         groups[classify_topic(text)].append(video)
     return _performance_rows(groups, "topic")
+
+
+def calculate_balanced_video_scores(videos) -> list[dict]:
+    """Rank videos without letting tiny high-rate posts dominate."""
+
+    if not videos:
+        return []
+    max_views = max(video.view_count for video in videos) or 1
+    max_engagements = max(video.total_engagement for video in videos) or 1
+    rates = [
+        safe_percentage(video.total_engagement, video.view_count)
+        for video in videos
+    ]
+    max_rate = max(rates) or 1
+    scored = []
+    for video, rate in zip(videos, rates):
+        score = (
+            (video.view_count / max_views) * 60
+            + (video.total_engagement / max_engagements) * 25
+            + (rate / max_rate) * 15
+        )
+        metrics = build_video_metrics(video)
+        metrics["performance_score"] = round(score, 2)
+        metrics["topic"] = classify_topic(
+            " ".join(
+                [video.title or "", video.description or ""]
+                + [str(tag) for tag in (video.hashtags or [])]
+            )
+        )
+        scored.append(metrics)
+    return sorted(
+        scored,
+        key=lambda item: item["performance_score"],
+        reverse=True,
+    )
 
 
 def _snapshot_percentage(current, previous, field):
@@ -248,7 +317,8 @@ def get_account_analytics(account: TikTokAccount) -> dict:
         else 0.0
     )
 
-    top_videos = [build_video_metrics(video) for video in videos[:5]]
+    scored_videos = calculate_balanced_video_scores(videos)
+    top_videos = scored_videos[:5]
     lowest_videos = [
         build_video_metrics(video)
         for video in sorted(
@@ -271,6 +341,25 @@ def get_account_analytics(account: TikTokAccount) -> dict:
     day_performance = calculate_day_performance(videos)
     time_performance = calculate_time_performance(videos)
     topic_performance = calculate_topic_performance(videos)
+    recent_30_cutoff = timezone.now() - timedelta(days=30)
+    recent_30 = [
+        video for video in videos
+        if video.posted_at and video.posted_at >= recent_30_cutoff
+    ]
+    recent_by_date = sorted(
+        [video for video in videos if video.posted_at],
+        key=lambda video: video.posted_at,
+        reverse=True,
+    )
+    recent_topics = [
+        classify_topic(
+            " ".join(
+                [video.title or "", video.description or ""]
+                + [str(tag) for tag in (video.hashtags or [])]
+            )
+        )
+        for video in recent_by_date[:10]
+    ]
     growth = get_daily_growth(account)
     latest = growth["latest"]
     previous = growth["previous"]
@@ -353,6 +442,11 @@ def get_account_analytics(account: TikTokAccount) -> dict:
         ),
         "recommendations": recommendations,
         "has_enough_data": len(videos) >= 3,
+        "scored_videos": scored_videos,
+        "recent_30_day_topics": calculate_topic_performance(recent_30),
+        "recent_topics": recent_topics,
+        "last_three_topics": recent_topics[:3],
+        "weak_topics": list(reversed(topic_performance))[:3],
         "summary": {
             "top_topic": (
                 topic_performance[0]["topic"] if topic_performance else None
@@ -363,5 +457,19 @@ def get_account_analytics(account: TikTokAccount) -> dict:
             ),
             "best_day": best_day["day"] if best_day else None,
             "best_time": best_time["time"] if best_time else None,
+            "topic_confidence": (
+                topic_performance[0]["confidence"]
+                if topic_performance else "Limited data"
+            ),
+            "length_confidence": (
+                length_performance[0]["confidence"]
+                if length_performance else "Limited data"
+            ),
+            "day_confidence": (
+                best_day["confidence"] if best_day else "Limited data"
+            ),
+            "time_confidence": (
+                best_time["confidence"] if best_time else "Limited data"
+            ),
         },
     }

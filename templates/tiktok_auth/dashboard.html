@@ -1090,6 +1090,11 @@
                         <strong>
                             {% if analytics.best_topic %}
                                 {{ analytics.best_topic.topic|title }}
+                                <small>
+                                    {{ analytics.best_topic.confidence }} ·
+                                    {{ analytics.best_topic.video_count }}
+                                    video{{ analytics.best_topic.video_count|pluralize }}
+                                </small>
                             {% else %}Not enough topic data{% endif %}
                         </strong>
                     </div>
@@ -1098,6 +1103,11 @@
                         <strong>
                             {% if analytics.best_length %}
                                 {{ analytics.best_length.label }}
+                                <small>
+                                    {{ analytics.best_length.confidence }} ·
+                                    {{ analytics.best_length.video_count }}
+                                    video{{ analytics.best_length.video_count|pluralize }}
+                                </small>
                             {% else %}Not enough duration data{% endif %}
                         </strong>
                     </div>
@@ -1109,6 +1119,7 @@
                                 at {{ best_posting_times.best.time_label }}
                             {% elif analytics.best_day %}
                                 {{ analytics.best_day.day }}
+                                · {{ analytics.best_day.confidence }}
                             {% else %}Not enough posting history{% endif %}
                         </strong>
                     </div>

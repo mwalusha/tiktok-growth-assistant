@@ -535,6 +535,20 @@ class ContentIdea(models.Model):
         blank=True,
     )
 
+    topic = models.CharField(max_length=80, blank=True)
+
+    concept = models.TextField(blank=True)
+
+    source_video = models.ForeignKey(
+        TikTokVideo,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="generated_content_ideas",
+    )
+
+    confidence = models.CharField(max_length=20, blank=True)
+
     created_at = models.DateTimeField(
         auto_now_add=True,
     )

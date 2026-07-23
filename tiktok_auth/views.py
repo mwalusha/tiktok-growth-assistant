@@ -862,6 +862,16 @@ def generate_and_save_content_ideas(request):
         return redirect("home")
 
     analytics = get_account_analytics(account)
+    if not analytics["videos_analyzed"]:
+        messages.warning(
+            request,
+            (
+                "Sync your TikTok performance before generating ideas. "
+                "The generator only uses stored video history."
+            ),
+        )
+        return redirect("tiktok-dashboard")
+
     generated_ideas = generate_personalized_content_ideas(
         account, analytics, count=5
     )
@@ -877,7 +887,10 @@ def generate_and_save_content_ideas(request):
     else:
         messages.info(
             request,
-            "Your current personalized ideas are already in the planner.",
+            (
+                "No new non-duplicate ideas were available. Your current "
+                "personalized ideas are already in the planner."
+            ),
         )
     return redirect("content-planner")
 
