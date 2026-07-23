@@ -3,6 +3,13 @@ from django.contrib import admin
 from .models import TikTokAccount
 from .models import ContentIdea
 from .models import TikTokVideo
+from .models import TikTokDailySnapshot
+from .models import WeeklyReport
+from .models import (
+    ChatConversation,
+    ChatMessage,
+    PeerComparison,
+)
 @admin.register(TikTokAccount)
 class TikTokAccountAdmin(admin.ModelAdmin):
     list_display = (
@@ -78,3 +85,71 @@ class TikTokVideoAdmin(admin.ModelAdmin):
     readonly_fields = (
         "synced_at",
     )
+
+
+@admin.register(TikTokDailySnapshot)
+class TikTokDailySnapshotAdmin(admin.ModelAdmin):
+    list_display = (
+        "account",
+        "date",
+        "follower_count",
+        "likes_count",
+        "video_count",
+        "avg_engagement_rate",
+    )
+    list_filter = ("date",)
+    search_fields = (
+        "account__display_name",
+        "account__open_id",
+    )
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+    )
+
+
+@admin.register(WeeklyReport)
+class WeeklyReportAdmin(admin.ModelAdmin):
+    list_display = (
+        "account",
+        "week_start",
+        "week_end",
+        "creator_score",
+        "updated_at",
+    )
+    list_filter = ("week_start",)
+    search_fields = (
+        "account__display_name",
+        "account__open_id",
+    )
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(PeerComparison)
+class PeerComparisonAdmin(admin.ModelAdmin):
+    list_display = (
+        "requesting_account",
+        "peer_account",
+        "status",
+        "created_at",
+    )
+    list_filter = ("status",)
+    readonly_fields = (
+        "invite_token",
+        "created_at",
+        "accepted_at",
+    )
+
+
+class ChatMessageInline(admin.TabularInline):
+    model = ChatMessage
+    extra = 0
+    readonly_fields = ("role", "content", "created_at")
+    can_delete = False
+
+
+@admin.register(ChatConversation)
+class ChatConversationAdmin(admin.ModelAdmin):
+    list_display = ("account", "created_at", "updated_at")
+    readonly_fields = ("created_at", "updated_at")
+    inlines = (ChatMessageInline,)

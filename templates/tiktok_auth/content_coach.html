@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Content Coach | TikTok Growth Assistant</title>
+    <style>
+        :root {
+            --background: #07080d;
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #fff;
+            --muted: #a7aab5;
+            --cyan: #25f4ee;
+            --pink: #fe2c55;
+            --purple: #8b5cf6;
+            --green: #4ade80;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            min-height: 100vh;
+            color: var(--text);
+            font-family: Inter, system-ui, sans-serif;
+            background:
+                radial-gradient(circle at 10% 5%, rgba(37,244,238,.1), transparent 25%),
+                radial-gradient(circle at 90% 8%, rgba(254,44,85,.11), transparent 26%),
+                var(--background);
+        }
+        a { color: inherit; text-decoration: none; }
+        button, input { font: inherit; }
+        .container { width: min(calc(100% - 36px), 1160px); margin: auto; }
+        nav {
+            border-bottom: 1px solid var(--border);
+            background: rgba(7,8,13,.86);
+        }
+        .nav-content {
+            min-height: 74px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .brand { font-weight: 850; }
+        .back {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--muted);
+            font-weight: 700;
+        }
+        main { padding: 52px 0 90px; }
+        .eyebrow {
+            color: var(--cyan);
+            font-size: 12px;
+            font-weight: 850;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
+        h1 {
+            margin-top: 9px;
+            font-size: clamp(36px, 6vw, 56px);
+            letter-spacing: -.05em;
+        }
+        .intro {
+            max-width: 720px;
+            margin-top: 12px;
+            color: var(--muted);
+            line-height: 1.7;
+        }
+        .messages { display: grid; gap: 10px; margin-bottom: 22px; }
+        .message {
+            padding: 14px 16px;
+            border: 1px solid rgba(254,44,85,.25);
+            border-radius: 12px;
+            background: rgba(254,44,85,.08);
+        }
+        .coach-form {
+            display: flex;
+            gap: 12px;
+            margin-top: 28px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: 17px;
+            background: rgba(255,255,255,.045);
+        }
+        .field { flex: 1; }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 750;
+        }
+        input {
+            width: 100%;
+            min-height: 48px;
+            padding: 0 14px;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            color: var(--text);
+            background: rgba(255,255,255,.05);
+        }
+        .generate, .save {
+            min-height: 48px;
+            padding: 0 19px;
+            border: 0;
+            border-radius: 11px;
+            color: #fff;
+            font-weight: 850;
+            cursor: pointer;
+            background: linear-gradient(135deg, var(--pink), var(--purple));
+        }
+        .generate { align-self: end; }
+        .errors { margin-top: 7px; color: #ff9caf; font-size: 12px; }
+        .results {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+            margin-top: 30px;
+        }
+        .idea {
+            padding: 23px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.025));
+        }
+        .idea h2 { font-size: 21px; line-height: 1.35; }
+        .hook {
+            margin-top: 15px;
+            padding: 13px;
+            border-left: 3px solid var(--pink);
+            border-radius: 8px;
+            line-height: 1.6;
+            background: rgba(254,44,85,.06);
+        }
+        .caption, .reason {
+            margin-top: 15px;
+            color: var(--muted);
+            line-height: 1.65;
+        }
+        .reason strong { color: var(--cyan); }
+        .hashtags {
+            margin-top: 15px;
+            color: var(--cyan);
+            line-height: 1.7;
+        }
+        .save { margin-top: 20px; background: rgba(74,222,128,.16); color: #c9fbd7; }
+        @media (max-width: 760px) {
+            .coach-form { flex-direction: column; }
+            .results { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container nav-content">
+            <a class="brand" href="/">TikTok Growth Assistant</a>
+            <a class="back" href="{% url 'content-planner' %}">
+                Back to planner
+            </a>
+        </div>
+    </nav>
+    <main>
+        <div class="container">
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="eyebrow">Grounded in your performance</div>
+            <h1>AI Content Coach</h1>
+            <p class="intro">
+                Generate five ideas using patterns from your ten
+                highest-viewed and ten most recent synced TikTok videos.
+            </p>
+
+            <form method="post" class="coach-form">
+                {% csrf_token %}
+                <div class="field">
+                    {{ form.niche.label_tag }}
+                    {{ form.niche }}
+                    {% if form.niche.errors %}
+                        <div class="errors">{{ form.niche.errors }}</div>
+                    {% endif %}
+                </div>
+                <button class="generate" type="submit">
+                    ✨ Generate ideas
+                </button>
+            </form>
+
+            {% if generated_ideas %}
+                <section class="results" aria-label="Generated ideas">
+                    {% for idea in generated_ideas %}
+                        <article class="idea">
+                            <h2>{{ idea.title }}</h2>
+                            <div class="hook">
+                                <strong>Hook:</strong> {{ idea.hook }}
+                            </div>
+                            <p class="caption">{{ idea.caption }}</p>
+                            <div class="hashtags">
+                                {{ idea.hashtags_text }}
+                            </div>
+                            <p class="reason">
+                                <strong>Why it fits:</strong>
+                                {{ idea.why_it_fits }}
+                            </p>
+                            <form
+                                method="post"
+                                action="{% url 'save-generated-idea' %}"
+                            >
+                                {% csrf_token %}
+                                <input type="hidden" name="title" value="{{ idea.title }}">
+                                <input type="hidden" name="hook" value="{{ idea.hook }}">
+                                <input type="hidden" name="caption" value="{{ idea.caption }}">
+                                <input type="hidden" name="hashtags" value="{{ idea.hashtags_text }}">
+                                <button class="save" type="submit">
+                                    Save to planner
+                                </button>
+                            </form>
+                        </article>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        </div>
+    </main>
+</body>
+</html>

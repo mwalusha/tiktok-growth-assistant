@@ -1,5 +1,4 @@
-from django.db import models
-
+import uuid
 
 from django.db import models
 
@@ -54,6 +53,19 @@ class TikTokAccount(models.Model):
         default=0,
     )
 
+    niche = models.CharField(
+        max_length=160,
+        blank=True,
+    )
+
+    allow_trend_aggregation = models.BooleanField(
+        default=False,
+    )
+
+    allow_peer_comparison = models.BooleanField(
+        default=False,
+    )
+
     access_token = models.TextField()
 
     refresh_token = models.TextField(
@@ -102,6 +114,11 @@ class TikTokVideo(models.Model):
     )
 
     description = models.TextField(
+        blank=True,
+    )
+
+    hashtags = models.JSONField(
+        default=list,
         blank=True,
     )
 
@@ -172,6 +189,201 @@ class TikTokVideo(models.Model):
             self.total_engagement / self.view_count * 100,
             2,
         )
+
+
+class TikTokDailySnapshot(models.Model):
+    account = models.ForeignKey(
+        TikTokAccount,
+        on_delete=models.CASCADE,
+        related_name="daily_snapshots",
+    )
+
+    date = models.DateField()
+
+    follower_count = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    following_count = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    likes_count = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    video_count = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    total_views = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    total_video_likes = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    total_comments = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    total_shares = models.PositiveBigIntegerField(
+        default=0,
+    )
+
+    avg_engagement_rate = models.DecimalField(
+        max_digits=9,
+        decimal_places=4,
+        default=0,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = ["-date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "date"],
+                name="unique_daily_snapshot_per_account",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.account} — {self.date}"
+
+
+class WeeklyReport(models.Model):
+    account = models.ForeignKey(
+        TikTokAccount,
+        on_delete=models.CASCADE,
+        related_name="weekly_reports",
+    )
+    week_start = models.DateField()
+    week_end = models.DateField()
+    snapshot_deltas = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+    creator_score = models.PositiveSmallIntegerField(
+        default=0,
+    )
+    creator_sub_scores = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+    recommendation = models.TextField(blank=True)
+    best_video = models.ForeignKey(
+        TikTokVideo,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="best_in_weekly_reports",
+    )
+    worst_video = models.ForeignKey(
+        TikTokVideo,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="worst_in_weekly_reports",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-week_start"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "week_start"],
+                name="unique_weekly_report_per_account",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.account} — week of {self.week_start}"
+
+
+class PeerComparison(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        REVOKED = "revoked", "Revoked"
+
+    invite_token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+    )
+    requesting_account = models.ForeignKey(
+        TikTokAccount,
+        on_delete=models.CASCADE,
+        related_name="comparison_requests_sent",
+    )
+    peer_account = models.ForeignKey(
+        TikTokAccount,
+        on_delete=models.CASCADE,
+        related_name="comparison_requests_received",
+        null=True,
+        blank=True,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return (
+            f"{self.requesting_account} comparison "
+            f"({self.get_status_display()})"
+        )
+
+
+class ChatConversation(models.Model):
+    account = models.OneToOneField(
+        TikTokAccount,
+        on_delete=models.CASCADE,
+        related_name="chat_conversation",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Assistant chat — {self.account}"
+
+
+class ChatMessage(models.Model):
+    class Role(models.TextChoices):
+        USER = "user", "User"
+        ASSISTANT = "assistant", "Assistant"
+
+    conversation = models.ForeignKey(
+        ChatConversation,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=Role.choices,
+    )
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+    def __str__(self):
+        return f"{self.get_role_display()}: {self.content[:50]}"
+
+
 class ContentIdea(models.Model):
     class Category(models.TextChoices):
         EDUCATIONAL = "educational", "Educational"
@@ -187,6 +399,14 @@ class ContentIdea(models.Model):
         PUBLISHED = "published", "Published"
         ARCHIVED = "archived", "Archived"
 
+    class ContentType(models.TextChoices):
+        EDUCATIONAL = "educational", "Educational"
+        TUTORIAL = "tutorial", "Tutorial"
+        TRANSFORMATION = "transformation", "Transformation"
+        STORY = "story", "Story"
+        COMMUNITY = "community", "Community"
+        PROMOTIONAL = "promotional", "Promotional"
+
     account = models.ForeignKey(
         TikTokAccount,
         on_delete=models.CASCADE,
@@ -201,6 +421,12 @@ class ContentIdea(models.Model):
         max_length=30,
         choices=Category.choices,
         default=Category.EDUCATIONAL,
+    )
+
+    content_type = models.CharField(
+        max_length=30,
+        choices=ContentType.choices,
+        blank=True,
     )
 
     hook = models.CharField(
@@ -226,6 +452,11 @@ class ContentIdea(models.Model):
         blank=True,
     )
 
+    calendar_date = models.DateField(
+        null=True,
+        blank=True,
+    )
+
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -246,6 +477,15 @@ class ContentIdea(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "calendar_date"],
+                condition=models.Q(
+                    calendar_date__isnull=False
+                ),
+                name="unique_ai_calendar_day_per_account",
+            ),
+        ]
 
     def __str__(self):
         return self.title

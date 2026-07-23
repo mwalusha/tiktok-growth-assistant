@@ -1,16 +1,126 @@
 import logging
+import re
+from datetime import timedelta
 from datetime import datetime, timezone as datetime_timezone
+from decimal import Decimal
 
 from django.db import transaction
+from django.utils import timezone
 
-from .models import TikTokAccount, TikTokVideo
+from .models import (
+    TikTokAccount,
+    TikTokDailySnapshot,
+    TikTokVideo,
+)
 from .services import (
+    TikTokAPIError,
     get_all_tiktok_videos,
     get_tiktok_profile,
+    refresh_access_token,
 )
 
 
 logger = logging.getLogger(__name__)
+TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
+HASHTAG_PATTERN = re.compile(r"(?<!\w)#([\w]+)", re.UNICODE)
+
+
+def extract_hashtags(description: str) -> list[str]:
+    """Return unique hashtag names, in the order used in the caption."""
+
+    hashtags = []
+    seen = set()
+
+    for match in HASHTAG_PATTERN.finditer(description or ""):
+        hashtag = match.group(1)
+        comparison_value = hashtag.casefold()
+
+        if comparison_value not in seen:
+            seen.add(comparison_value)
+            hashtags.append(hashtag)
+
+    return hashtags
+
+
+def ensure_valid_access_token(account: TikTokAccount) -> str:
+    """
+    Refresh an access token before an API call when it is near expiry.
+
+    A short buffer keeps a token from expiring during a paginated sync.
+    """
+
+    expires_at = account.access_token_expires_at
+
+    if (
+        account.access_token
+        and expires_at
+        and expires_at > timezone.now() + TOKEN_REFRESH_BUFFER
+    ):
+        return account.access_token
+
+    if not account.refresh_token:
+        raise TikTokAPIError(
+            "The TikTok access token has expired and no refresh token "
+            "is available. Reconnect the account."
+        )
+
+    if (
+        account.refresh_token_expires_at
+        and account.refresh_token_expires_at <= timezone.now()
+    ):
+        raise TikTokAPIError(
+            "The TikTok refresh token has expired. Reconnect the account."
+        )
+
+    token_data = refresh_access_token(account.refresh_token)
+    access_token = token_data.get("access_token")
+
+    if not access_token:
+        raise TikTokAPIError(
+            "TikTok did not return an access token while refreshing."
+        )
+
+    try:
+        expires_in = int(token_data.get("expires_in") or 0)
+        refresh_expires_in = int(
+            token_data.get("refresh_expires_in") or 0
+        )
+    except (TypeError, ValueError) as exc:
+        raise TikTokAPIError(
+            "TikTok returned invalid token expiry information."
+        ) from exc
+
+    account.access_token = access_token
+    account.access_token_expires_at = (
+        timezone.now() + timedelta(seconds=expires_in)
+        if expires_in
+        else None
+    )
+
+    if token_data.get("refresh_token"):
+        account.refresh_token = token_data["refresh_token"]
+
+    if refresh_expires_in:
+        account.refresh_token_expires_at = (
+            timezone.now()
+            + timedelta(seconds=refresh_expires_in)
+        )
+
+    if token_data.get("scope"):
+        account.scope = token_data["scope"]
+
+    account.save(
+        update_fields=[
+            "access_token",
+            "access_token_expires_at",
+            "refresh_token",
+            "refresh_token_expires_at",
+            "scope",
+            "updated_at",
+        ]
+    )
+
+    return account.access_token
 
 
 def unix_timestamp_to_datetime(value):
@@ -26,15 +136,57 @@ def unix_timestamp_to_datetime(value):
         return None
 
 
-@transaction.atomic
+def calculate_snapshot_metrics(
+    videos: list[TikTokVideo],
+) -> dict:
+    """Aggregate the public videos active in the current sync."""
+
+    total_views = sum(video.view_count for video in videos)
+    total_video_likes = sum(video.like_count for video in videos)
+    total_comments = sum(video.comment_count for video in videos)
+    total_shares = sum(video.share_count for video in videos)
+
+    rates = [
+        (
+            Decimal(
+                video.like_count
+                + video.comment_count
+                + video.share_count
+            )
+            / Decimal(video.view_count)
+            * Decimal("100")
+            if video.view_count
+            else Decimal("0")
+        )
+        for video in videos
+    ]
+    avg_engagement_rate = (
+        sum(rates, Decimal("0")) / Decimal(len(rates))
+        if rates
+        else Decimal("0")
+    )
+
+    return {
+        "total_views": total_views,
+        "total_video_likes": total_video_likes,
+        "total_comments": total_comments,
+        "total_shares": total_shares,
+        "avg_engagement_rate": avg_engagement_rate.quantize(
+            Decimal("0.0001")
+        ),
+    }
+
+
 def sync_tiktok_performance(
     account: TikTokAccount,
-    access_token: str,
 ) -> dict:
     """
     Update profile statistics and synchronize public videos.
     """
 
+    # The sync owns token validation so cron and web-triggered runs cannot
+    # accidentally call TikTok with a stale 24-hour access token.
+    access_token = ensure_valid_access_token(account)
     profile = get_tiktok_profile(access_token)
 
     account.display_name = profile.get(
@@ -78,86 +230,116 @@ def sync_tiktok_performance(
         0,
     )
 
-    account.save(
-        update_fields=[
-            "display_name",
-            "username",
-            "avatar_url",
-            "profile_deep_link",
-            "bio_description",
-            "is_verified",
-            "follower_count",
-            "following_count",
-            "likes_count",
-            "video_count",
-            "updated_at",
-        ]
-    )
-
     videos = get_all_tiktok_videos(access_token)
 
-    synced_ids = []
+    created_count = 0
+    updated_count = 0
+    active_videos = []
 
-    for video_data in videos:
-        video_id = str(video_data.get("id", "")).strip()
-
-        if not video_id:
-            logger.warning(
-                "TikTok returned a video without an ID."
-            )
-            continue
-
-        TikTokVideo.objects.update_or_create(
-            account=account,
-            video_id=video_id,
-            defaults={
-                "title": video_data.get("title", ""),
-                "description": video_data.get(
-                    "video_description",
-                    "",
-                ),
-                "cover_image_url": video_data.get(
-                    "cover_image_url",
-                    "",
-                ),
-                "share_url": video_data.get(
-                    "share_url",
-                    "",
-                ),
-                "embed_link": video_data.get(
-                    "embed_link",
-                    "",
-                ),
-                "duration": video_data.get(
-                    "duration",
-                    0,
-                ) or 0,
-                "view_count": video_data.get(
-                    "view_count",
-                    0,
-                ) or 0,
-                "like_count": video_data.get(
-                    "like_count",
-                    0,
-                ) or 0,
-                "comment_count": video_data.get(
-                    "comment_count",
-                    0,
-                ) or 0,
-                "share_count": video_data.get(
-                    "share_count",
-                    0,
-                ) or 0,
-                "posted_at": unix_timestamp_to_datetime(
-                    video_data.get("create_time")
-                ),
-            },
+    with transaction.atomic():
+        account.save(
+            update_fields=[
+                "display_name",
+                "username",
+                "avatar_url",
+                "profile_deep_link",
+                "bio_description",
+                "is_verified",
+                "follower_count",
+                "following_count",
+                "likes_count",
+                "video_count",
+                "updated_at",
+            ]
         )
 
-        synced_ids.append(video_id)
+        for video_data in videos:
+            video_id = str(video_data.get("id", "")).strip()
+
+            if not video_id:
+                logger.warning(
+                    "TikTok returned a video without an ID."
+                )
+                continue
+
+            description = video_data.get(
+                "video_description",
+                "",
+            ) or ""
+            video, created = TikTokVideo.objects.update_or_create(
+                video_id=video_id,
+                defaults={
+                    "account": account,
+                    "title": video_data.get("title", "") or "",
+                    "description": description,
+                    "hashtags": extract_hashtags(description),
+                    "cover_image_url": video_data.get(
+                        "cover_image_url",
+                        "",
+                    ) or "",
+                    "share_url": video_data.get(
+                        "share_url",
+                        "",
+                    ) or "",
+                    "embed_link": video_data.get(
+                        "embed_link",
+                        "",
+                    ) or "",
+                    "duration": video_data.get(
+                        "duration",
+                        0,
+                    ) or 0,
+                    "view_count": video_data.get(
+                        "view_count",
+                        0,
+                    ) or 0,
+                    "like_count": video_data.get(
+                        "like_count",
+                        0,
+                    ) or 0,
+                    "comment_count": video_data.get(
+                        "comment_count",
+                        0,
+                    ) or 0,
+                    "share_count": video_data.get(
+                        "share_count",
+                        0,
+                    ) or 0,
+                    "posted_at": unix_timestamp_to_datetime(
+                        video_data.get("create_time")
+                    ),
+                },
+            )
+            active_videos.append(video)
+
+            if created:
+                created_count += 1
+            else:
+                updated_count += 1
+
+        snapshot_metrics = calculate_snapshot_metrics(
+            active_videos
+        )
+        snapshot, snapshot_created = (
+            TikTokDailySnapshot.objects.update_or_create(
+                account=account,
+                date=timezone.localdate(),
+                defaults={
+                    "follower_count": account.follower_count,
+                    "following_count": account.following_count,
+                    "likes_count": account.likes_count,
+                    "video_count": account.video_count,
+                    **snapshot_metrics,
+                },
+            )
+        )
 
     return {
         "profile": profile,
         "videos_received": len(videos),
-        "videos_saved": len(synced_ids),
+        "videos_saved": created_count + updated_count,
+        "videos_created": created_count,
+        "videos_updated": updated_count,
+        "snapshot": snapshot,
+        "snapshot_created": snapshot_created,
     }

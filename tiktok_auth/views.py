@@ -2,23 +2,54 @@ import logging
 import secrets
 from datetime import timedelta
 from urllib.parse import urlencode
-
+from .analytics import get_account_analytics, get_daily_growth
 from django.conf import settings
 from django.contrib import messages
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.decorators.http import require_http_methods
+from .content_coach import (
+    AIContentCoachError,
+    generate_content_ideas,
+)
+from .content_calendar import (
+    generate_weekly_calendar,
+    next_calendar_week,
+)
+from .creator_score import get_creator_score
+from .posting_times import get_best_posting_times
+from .viral_predictor import (
+    ViralPredictionError,
+    score_draft,
+)
+from .trend_hunter import (
+    get_trend_hunter,
+    get_trending_hashtag_names,
+)
+from .peer_benchmark import build_peer_comparison
+from .chat_assistant import (
+    call_chat_llm,
+    save_chat_exchange,
+)
+from .models import ChatConversation, PeerComparison
 from .models import TikTokAccount
 from .services import (
     TikTokAPIError,
     exchange_code_for_token,
     get_tiktok_profile,
-    refresh_access_token,
     revoke_access,
 )
-from .forms import ContentIdeaForm
-from .sync import sync_tiktok_performance
+from .forms import (
+    ChatAssistantForm,
+    ContentCoachForm,
+    ContentIdeaForm,
+    GeneratedIdeaSaveForm,
+    ViralPredictorForm,
+)
+from .sync import ensure_valid_access_token, sync_tiktok_performance
 from .models import ContentIdea, TikTokAccount
 logger = logging.getLogger(__name__)
 
@@ -319,38 +350,55 @@ def tiktok_callback(request):
 
 
 def dashboard(request):
-    account_id = request.session.get(
-        "tiktok_account_id"
-    )
+    account = get_connected_account(request)
 
-    if not account_id:
+    if not account:
         messages.info(
             request,
             "Connect your TikTok account first.",
         )
-
         return redirect("home")
 
-    account = get_object_or_404(
-        TikTokAccount,
-        pk=account_id,
-    )
+    token_expired = False
 
-    token_expired = bool(
-        account.access_token_expires_at
-        and account.access_token_expires_at
-        <= timezone.now()
-    )
+    try:
+        ensure_valid_access_token(account)
+
+    except TikTokAPIError as exc:
+        token_expired = True
+
+        logger.warning(
+            "TikTok token validation failed: %s",
+            exc,
+        )
+
+        messages.warning(
+            request,
+            "Your TikTok connection needs to be renewed.",
+        )
+
+    analytics = get_account_analytics(account)
+    daily_growth = get_daily_growth(account)
+    creator_score = get_creator_score(account)
+    best_posting_times = get_best_posting_times(account)
+    weekly_report = account.weekly_reports.select_related(
+        "best_video",
+        "worst_video",
+    ).first()
 
     return render(
         request,
         "tiktok_auth/dashboard.html",
         {
             "account": account,
+            "analytics": analytics,
+            "daily_growth": daily_growth,
+            "creator_score": creator_score,
+            "best_posting_times": best_posting_times,
+            "weekly_report": weekly_report,
             "token_expired": token_expired,
         },
     )
-
 
 @require_POST
 def disconnect_tiktok(request):
@@ -413,6 +461,427 @@ def content_planner(request):
             "status_choices": ContentIdea.Status.choices,
         },
     )
+
+
+@require_http_methods(["GET", "POST"])
+def viral_predictor(request):
+    account = get_connected_account(request)
+
+    if not account:
+        messages.info(
+            request,
+            "Connect your TikTok account before scoring a draft.",
+        )
+        return redirect("home")
+
+    prediction = None
+
+    if request.method == "POST":
+        form = ViralPredictorForm(request.POST)
+
+        if form.is_valid():
+            try:
+                prediction = score_draft(
+                    account,
+                    form.cleaned_data["caption"],
+                    form.cleaned_data["hashtags"],
+                    trending_hashtags=(
+                        get_trending_hashtag_names(account)
+                    ),
+                )
+            except ViralPredictionError as exc:
+                messages.error(request, str(exc))
+    else:
+        form = ViralPredictorForm()
+
+    return render(
+        request,
+        "tiktok_auth/viral_predictor.html",
+        {
+            "account": account,
+            "form": form,
+            "prediction": prediction,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def trend_hunter(request):
+    account = get_connected_account(request)
+
+    if not account:
+        messages.info(
+            request,
+            "Connect your TikTok account before viewing trends.",
+        )
+        return redirect("home")
+
+    if request.method == "POST":
+        opted_in = request.POST.get("participate") == "yes"
+        account.allow_trend_aggregation = opted_in
+        account.save(
+            update_fields=[
+                "allow_trend_aggregation",
+                "updated_at",
+            ]
+        )
+        messages.success(
+            request,
+            (
+                "Anonymous trend participation enabled."
+                if opted_in
+                else "Anonymous trend participation disabled."
+            ),
+        )
+        return redirect("trend-hunter")
+
+    return render(
+        request,
+        "tiktok_auth/trend_hunter.html",
+        {
+            "account": account,
+            "trend_data": get_trend_hunter(account),
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def peer_benchmarks(request):
+    account = get_connected_account(request)
+
+    if not account:
+        messages.info(
+            request,
+            "Connect your TikTok account before comparing peers.",
+        )
+        return redirect("home")
+
+    if request.method == "POST":
+        account.allow_peer_comparison = True
+        account.save(
+            update_fields=[
+                "allow_peer_comparison",
+                "updated_at",
+            ]
+        )
+        PeerComparison.objects.create(
+            requesting_account=account
+        )
+        messages.success(
+            request,
+            "Comparison invitation created.",
+        )
+        return redirect("peer-benchmarks")
+
+    accepted = (
+        PeerComparison.objects.filter(
+            Q(requesting_account=account)
+            | Q(peer_account=account),
+            status=PeerComparison.Status.ACCEPTED,
+            requesting_account__allow_peer_comparison=True,
+            peer_account__allow_peer_comparison=True,
+        )
+        .select_related(
+            "requesting_account",
+            "peer_account",
+        )
+    )
+    comparisons = [
+        build_peer_comparison(item, account)
+        for item in accepted
+    ]
+    pending = account.comparison_requests_sent.filter(
+        status=PeerComparison.Status.PENDING
+    ).order_by("-created_at")
+    pending_links = [
+        {
+            "comparison": item,
+            "url": request.build_absolute_uri(
+                reverse(
+                    "accept-peer-invite",
+                    args=[item.invite_token],
+                )
+            ),
+        }
+        for item in pending
+    ]
+    return render(
+        request,
+        "tiktok_auth/peer_benchmarks.html",
+        {
+            "account": account,
+            "comparisons": comparisons,
+            "pending_links": pending_links,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def chat_assistant(request):
+    account = get_connected_account(request)
+
+    if not account:
+        messages.info(
+            request,
+            "Connect your TikTok account before using the assistant.",
+        )
+        return redirect("home")
+
+    conversation, _ = ChatConversation.objects.get_or_create(
+        account=account
+    )
+
+    if request.method == "POST":
+        form = ChatAssistantForm(request.POST)
+
+        if form.is_valid():
+            user_message = form.cleaned_data["message"].strip()
+
+            try:
+                assistant_message = call_chat_llm(
+                    account,
+                    conversation,
+                    user_message,
+                )
+            except AIContentCoachError as exc:
+                messages.error(request, str(exc))
+            else:
+                save_chat_exchange(
+                    conversation,
+                    user_message,
+                    assistant_message,
+                )
+                return redirect("chat-assistant")
+    else:
+        form = ChatAssistantForm()
+
+    return render(
+        request,
+        "tiktok_auth/chat_assistant.html",
+        {
+            "account": account,
+            "chat_messages": conversation.messages.all(),
+            "form": form,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def accept_peer_invite(request, token):
+    account = get_connected_account(request)
+
+    if not account:
+        messages.info(
+            request,
+            "Connect the comparison TikTok account before accepting.",
+        )
+        return redirect("home")
+
+    comparison = get_object_or_404(
+        PeerComparison,
+        invite_token=token,
+        status=PeerComparison.Status.PENDING,
+    )
+
+    if comparison.requesting_account == account:
+        messages.error(
+            request,
+            "A different connected account must accept this invitation.",
+        )
+        return redirect("peer-benchmarks")
+
+    if request.method == "POST":
+        account.allow_peer_comparison = True
+        account.save(
+            update_fields=[
+                "allow_peer_comparison",
+                "updated_at",
+            ]
+        )
+        comparison.peer_account = account
+        comparison.status = PeerComparison.Status.ACCEPTED
+        comparison.accepted_at = timezone.now()
+        comparison.save(
+            update_fields=[
+                "peer_account",
+                "status",
+                "accepted_at",
+            ]
+        )
+        messages.success(
+            request,
+            "Peer comparison accepted.",
+        )
+        return redirect("peer-benchmarks")
+
+    return render(
+        request,
+        "tiktok_auth/accept_peer_invite.html",
+        {
+            "account": account,
+            "comparison": comparison,
+        },
+    )
+
+
+@require_POST
+def revoke_peer_comparison(request, comparison_id):
+    account = get_connected_account(request)
+
+    if not account:
+        messages.info(
+            request,
+            "Connect your TikTok account first.",
+        )
+        return redirect("home")
+
+    comparison = get_object_or_404(
+        PeerComparison,
+        Q(requesting_account=account) | Q(peer_account=account),
+        pk=comparison_id,
+        status=PeerComparison.Status.ACCEPTED,
+    )
+    comparison.status = PeerComparison.Status.REVOKED
+    comparison.save(update_fields=["status"])
+    messages.success(request, "Peer comparison revoked.")
+    return redirect("peer-benchmarks")
+
+
+@require_http_methods(["GET", "POST"])
+def content_calendar(request):
+    account = get_connected_account(request)
+
+    if not account:
+        messages.info(
+            request,
+            "Connect your TikTok account before using the calendar.",
+        )
+        return redirect("home")
+
+    week_start = next_calendar_week()
+    week_end = week_start + timedelta(days=6)
+
+    if request.method == "POST":
+        try:
+            result = generate_weekly_calendar(
+                account,
+                week_start=week_start,
+            )
+        except AIContentCoachError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(
+                request,
+                (
+                    "Your seven-day calendar was generated for "
+                    f"{result['week_start']:%B %d}–"
+                    f"{result['week_end']:%B %d}."
+                ),
+            )
+
+        return redirect("content-calendar")
+
+    calendar_ideas = account.content_ideas.filter(
+        calendar_date__range=(week_start, week_end)
+    ).order_by("calendar_date")
+    return render(
+        request,
+        "tiktok_auth/content_calendar.html",
+        {
+            "account": account,
+            "week_start": week_start,
+            "week_end": week_end,
+            "calendar_ideas": calendar_ideas,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def content_coach(request):
+    account = get_connected_account(request)
+
+    if not account:
+        messages.info(
+            request,
+            "Connect your TikTok account before using the content coach.",
+        )
+        return redirect("home")
+
+    generated_ideas = []
+
+    if request.method == "POST":
+        form = ContentCoachForm(request.POST)
+
+        if form.is_valid():
+            niche = form.cleaned_data["niche"].strip()
+
+            if account.niche != niche:
+                account.niche = niche
+                account.save(
+                    update_fields=["niche", "updated_at"]
+                )
+
+            try:
+                generated_ideas = generate_content_ideas(
+                    account
+                )
+            except AIContentCoachError as exc:
+                logger.warning(
+                    "Content coach generation failed for account %s: %s",
+                    account.pk,
+                    exc,
+                )
+                messages.error(request, str(exc))
+    else:
+        form = ContentCoachForm(
+            initial={"niche": account.niche}
+        )
+
+    return render(
+        request,
+        "tiktok_auth/content_coach.html",
+        {
+            "account": account,
+            "form": form,
+            "generated_ideas": generated_ideas,
+        },
+    )
+
+
+@require_POST
+def save_generated_idea(request):
+    account = get_connected_account(request)
+
+    if not account:
+        messages.info(
+            request,
+            "Connect your TikTok account first.",
+        )
+        return redirect("home")
+
+    form = GeneratedIdeaSaveForm(request.POST)
+
+    if not form.is_valid():
+        messages.error(
+            request,
+            "That generated idea could not be saved.",
+        )
+        return redirect("content-coach")
+
+    ContentIdea.objects.create(
+        account=account,
+        title=form.cleaned_data["title"],
+        category=ContentIdea.Category.OTHER,
+        hook=form.cleaned_data["hook"],
+        caption=form.cleaned_data["caption"],
+        hashtags=form.cleaned_data["hashtags"],
+        notes="Generated by the AI content coach.",
+    )
+    messages.success(
+        request,
+        "Generated idea saved to your content planner.",
+    )
+    return redirect("content-planner")
 
 
 @require_http_methods(["GET", "POST"])
@@ -533,11 +1002,8 @@ def sync_performance(request):
         return redirect("home")
 
     try:
-        access_token = ensure_valid_access_token(account)
-
         result = sync_tiktok_performance(
             account=account,
-            access_token=access_token,
         )
 
         messages.success(

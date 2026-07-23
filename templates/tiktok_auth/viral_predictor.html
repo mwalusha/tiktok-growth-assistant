@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Draft Score | TikTok Growth Assistant</title>
+    <style>
+        :root{--bg:#07080d;--card:#11131b;--border:rgba(255,255,255,.1);--text:#fff;--muted:#a7aab5;--cyan:#25f4ee;--pink:#fe2c55;--purple:#8b5cf6}
+        *{box-sizing:border-box} body{margin:0;min-height:100vh;font-family:Inter,system-ui,sans-serif;color:var(--text);background:radial-gradient(circle at 10% 5%,rgba(37,244,238,.1),transparent 25%),var(--bg)}
+        a{color:inherit;text-decoration:none}.container{width:min(calc(100% - 36px),940px);margin:auto}nav{border-bottom:1px solid var(--border)}.nav{min-height:72px;display:flex;align-items:center;justify-content:space-between}.brand{font-weight:850}.back{color:var(--muted)}
+        main{padding:52px 0 90px}.eyebrow{color:var(--cyan);font-size:12px;font-weight:850;text-transform:uppercase;letter-spacing:.12em}h1{font-size:clamp(36px,6vw,56px);letter-spacing:-.05em;margin:8px 0}.intro{color:var(--muted);line-height:1.7}
+        .messages,.form,.result{margin-top:24px;padding:22px;border:1px solid var(--border);border-radius:18px;background:rgba(255,255,255,.045)}.field{margin-bottom:17px}label{display:block;margin-bottom:8px;font-size:13px;font-weight:800}textarea,input{width:100%;padding:13px;border:1px solid var(--border);border-radius:10px;color:var(--text);background:rgba(255,255,255,.045);font:inherit}button{min-height:46px;padding:0 18px;border:0;border-radius:10px;color:#fff;font-weight:850;cursor:pointer;background:linear-gradient(135deg,var(--pink),var(--purple))}
+        .score{font-size:68px;font-weight:900;letter-spacing:-.06em}.score small{font-size:18px;color:var(--muted)}.label{color:var(--cyan);font-weight:800}.reasons{margin:18px 0 0;padding-left:20px;color:var(--muted);line-height:1.8}.disclaimer{margin-top:17px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}.errors{color:#ff9caf;font-size:12px}
+    </style>
+</head>
+<body>
+    <nav><div class="container nav"><a class="brand" href="/">TikTok Growth Assistant</a><a class="back" href="{% url 'content-planner' %}">Back to planner</a></div></nav>
+    <main><div class="container">
+        {% if messages %}<div class="messages">{% for message in messages %}{{ message }}{% endfor %}</div>{% endif %}
+        <div class="eyebrow">Pre-publish confidence check</div>
+        <h1>Draft Score</h1>
+        <p class="intro">Compare a planned caption and hashtag set with patterns from your own highest-viewed videos.</p>
+        <form method="post" class="form">
+            {% csrf_token %}
+            <div class="field">{{ form.caption.label_tag }}{{ form.caption }}<div class="errors">{{ form.caption.errors }}</div></div>
+            <div class="field">{{ form.hashtags.label_tag }}{{ form.hashtags }}<div class="errors">{{ form.hashtags.errors }}</div></div>
+            <button type="submit">Score this draft</button>
+        </form>
+        {% if prediction %}
+            <section class="result">
+                <div class="score">{{ prediction.score }}<small>/100</small></div>
+                <div class="label">{{ prediction.label }}</div>
+                <ul class="reasons">{% for explanation in prediction.explanations %}<li>{{ explanation }}</li>{% endfor %}</ul>
+                <div class="disclaimer">{{ prediction.disclaimer }} Based on {{ prediction.based_on_videos }} historical videos.</div>
+            </section>
+        {% endif %}
+    </div></main>
+</body>
+</html>

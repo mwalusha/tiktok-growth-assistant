@@ -144,6 +144,26 @@
             filter: brightness(1.08);
         }
 
+        .header-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .coach-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 45px;
+            padding: 0 18px;
+            border: 1px solid rgba(37, 244, 238, 0.28);
+            border-radius: 11px;
+            color: var(--cyan);
+            font-size: 14px;
+            font-weight: 800;
+            background: rgba(37, 244, 238, 0.07);
+        }
+
         main {
             padding: 52px 0 90px;
         }
@@ -481,12 +501,35 @@
                     </p>
                 </div>
 
-                <a
-                    href="{% url 'create-content-idea' %}"
-                    class="primary-button"
-                >
-                    + Create content idea
-                </a>
+                <div class="header-actions">
+                    <a
+                        href="{% url 'content-calendar' %}"
+                        class="coach-button"
+                    >
+                        Weekly calendar
+                    </a>
+
+                    <a
+                        href="{% url 'viral-predictor' %}"
+                        class="coach-button"
+                    >
+                        Check draft score
+                    </a>
+
+                    <a
+                        href="{% url 'content-coach' %}"
+                        class="coach-button"
+                    >
+                        ✨ Generate with AI
+                    </a>
+
+                    <a
+                        href="{% url 'create-content-idea' %}"
+                        class="primary-button"
+                    >
+                        + Create content idea
+                    </a>
+                </div>
             </header>
 
             <section class="toolbar">

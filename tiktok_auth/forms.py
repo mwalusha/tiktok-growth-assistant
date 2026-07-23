@@ -3,6 +3,63 @@ from django import forms
 from .models import ContentIdea
 
 
+class ContentCoachForm(forms.Form):
+    niche = forms.CharField(
+        max_length=160,
+        label="Your content niche",
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": (
+                    "Example: beginner Python tutorials for students"
+                ),
+            }
+        ),
+    )
+
+
+class GeneratedIdeaSaveForm(forms.Form):
+    title = forms.CharField(max_length=200)
+    hook = forms.CharField(max_length=300)
+    caption = forms.CharField()
+    hashtags = forms.CharField(max_length=500)
+
+
+class ViralPredictorForm(forms.Form):
+    caption = forms.CharField(
+        max_length=2200,
+        widget=forms.Textarea(
+            attrs={
+                "rows": 5,
+                "placeholder": "Paste your planned caption...",
+            }
+        ),
+    )
+    hashtags = forms.CharField(
+        max_length=500,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "#Python #CreatorTips #LearnOnTikTok",
+            }
+        ),
+    )
+
+
+class ChatAssistantForm(forms.Form):
+    message = forms.CharField(
+        max_length=2000,
+        widget=forms.Textarea(
+            attrs={
+                "rows": 3,
+                "placeholder": (
+                    "Ask about your growth, videos, score, trends, "
+                    "or what to post next..."
+                ),
+            }
+        ),
+    )
+
+
 class ContentIdeaForm(forms.ModelForm):
     class Meta:
         model = ContentIdea

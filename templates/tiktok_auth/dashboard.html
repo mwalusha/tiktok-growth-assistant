@@ -198,6 +198,254 @@
             gap: 20px;
         }
 
+        .growth-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .score-card {
+            display: grid;
+            grid-template-columns: 210px 1fr;
+            gap: 30px;
+            margin-bottom: 20px;
+            padding: 25px;
+        }
+
+        .score-number {
+            margin-top: 4px;
+            font-size: 70px;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -0.06em;
+        }
+
+        .score-number span {
+            color: var(--muted);
+            font-size: 20px;
+            letter-spacing: 0;
+        }
+
+        .score-change {
+            margin-top: 10px;
+            color: var(--green);
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .score-change.negative {
+            color: #ff9caf;
+        }
+
+        .score-components {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 13px 20px;
+        }
+
+        .component-heading {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 750;
+        }
+
+        .component-track {
+            height: 7px;
+            margin-top: 7px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(255,255,255,.08);
+        }
+
+        .component-fill {
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--pink), var(--cyan));
+        }
+
+        .score-explanations {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 5px;
+        }
+
+        .score-reason {
+            padding: 8px 10px;
+            border-radius: 9px;
+            color: #dfe1e8;
+            font-size: 12px;
+            background: rgba(255,255,255,.055);
+        }
+
+        .timing-card {
+            margin-bottom: 20px;
+            padding: 25px;
+        }
+
+        .timing-header {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 18px;
+        }
+
+        .timing-header h2 {
+            margin-top: 6px;
+            font-size: 24px;
+            letter-spacing: -0.03em;
+        }
+
+        .timezone-label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .timing-list {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 11px;
+        }
+
+        .timing-slot {
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            background: rgba(255,255,255,.035);
+        }
+
+        .timing-slot:first-child {
+            border-color: rgba(37,244,238,.28);
+            background: rgba(37,244,238,.06);
+        }
+
+        .timing-day {
+            color: var(--cyan);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .timing-hour {
+            margin-top: 5px;
+            font-size: 19px;
+            font-weight: 850;
+        }
+
+        .timing-engagement {
+            margin-top: 11px;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .confidence {
+            display: inline-block;
+            margin-top: 9px;
+            padding: 5px 7px;
+            border-radius: 7px;
+            color: #dfe1e8;
+            font-size: 10px;
+            font-weight: 800;
+            background: rgba(255,255,255,.07);
+        }
+
+        .timing-empty {
+            padding: 18px;
+            border: 1px dashed var(--border);
+            border-radius: 13px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .weekly-card {
+            margin-bottom: 20px;
+            padding: 25px;
+        }
+
+        .weekly-heading {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .weekly-heading h2 {
+            margin-top: 6px;
+            font-size: 25px;
+        }
+
+        .weekly-range {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .weekly-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 11px;
+            margin-top: 18px;
+        }
+
+        .weekly-item {
+            padding: 15px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(255,255,255,.035);
+        }
+
+        .weekly-item strong {
+            display: block;
+            margin-top: 6px;
+            font-size: 18px;
+        }
+
+        .weekly-recommendation {
+            margin-top: 14px;
+            padding: 14px;
+            border-left: 3px solid var(--cyan);
+            border-radius: 8px;
+            color: #dfe1e8;
+            line-height: 1.6;
+            background: rgba(37,244,238,.05);
+        }
+
+        .growth-metric {
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--surface-soft);
+        }
+
+        .growth-value {
+            margin-top: 8px;
+            font-size: 27px;
+            font-weight: 850;
+        }
+
+        .growth-delta {
+            margin-top: 7px;
+            color: var(--green);
+            font-size: 13px;
+            font-weight: 750;
+        }
+
+        .growth-delta.negative {
+            color: #ff9caf;
+        }
+
+        .growth-empty {
+            grid-column: 1 / -1;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
         .card {
             border: 1px solid var(--border);
             border-radius: 20px;
@@ -342,6 +590,22 @@
             .grid {
                 grid-template-columns: 1fr;
             }
+
+            .growth-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .score-card {
+                grid-template-columns: 1fr;
+            }
+
+            .timing-list {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .weekly-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         @media (max-width: 590px) {
@@ -354,6 +618,22 @@
             }
 
             .feature-list {
+                grid-template-columns: 1fr;
+            }
+
+            .growth-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .score-components {
+                grid-template-columns: 1fr;
+            }
+
+            .timing-list {
+                grid-template-columns: 1fr;
+            }
+
+            .weekly-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -373,6 +653,15 @@
             </a>
 
             <div class="nav-links">
+                <a class="home-link" href="{% url 'chat-assistant' %}">
+                    AI Assistant
+                </a>
+                <a class="home-link" href="{% url 'trend-hunter' %}">
+                    Trends
+                </a>
+                <a class="home-link" href="{% url 'peer-benchmarks' %}">
+                    Peers
+                </a>
                 <a class="home-link" href="/">
                     Homepage
                 </a>
@@ -433,6 +722,216 @@
                     refresh will be added in the next step.
                 </div>
             {% endif %}
+
+            {% if weekly_report %}
+                <section class="card weekly-card" aria-label="Weekly report">
+                    <div class="weekly-heading">
+                        <div>
+                            <div class="detail-label">Weekly report</div>
+                            <h2>Your week at a glance</h2>
+                        </div>
+                        <div class="weekly-range">
+                            {{ weekly_report.week_start|date:"M j" }}–
+                            {{ weekly_report.week_end|date:"M j, Y" }}
+                        </div>
+                    </div>
+                    <div class="weekly-grid">
+                        <div class="weekly-item">
+                            <div class="detail-label">Followers</div>
+                            <strong>
+                                {% if weekly_report.snapshot_deltas.follower_count > 0 %}+{% endif %}{{ weekly_report.snapshot_deltas.follower_count|default:0|floatformat:0 }}
+                            </strong>
+                        </div>
+                        <div class="weekly-item">
+                            <div class="detail-label">Creator score</div>
+                            <strong>{{ weekly_report.creator_score }}/100</strong>
+                        </div>
+                        <div class="weekly-item">
+                            <div class="detail-label">Best video</div>
+                            <strong>
+                                {% if weekly_report.best_video %}
+                                    {{ weekly_report.best_video.title|default:weekly_report.best_video.video_id|truncatechars:30 }}
+                                {% else %}No posts{% endif %}
+                            </strong>
+                        </div>
+                        <div class="weekly-item">
+                            <div class="detail-label">Needs attention</div>
+                            <strong>
+                                {% if weekly_report.worst_video %}
+                                    {{ weekly_report.worst_video.title|default:weekly_report.worst_video.video_id|truncatechars:30 }}
+                                {% else %}No posts{% endif %}
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="weekly-recommendation">
+                        <strong>One action for next week:</strong>
+                        {{ weekly_report.recommendation }}
+                    </div>
+                </section>
+            {% endif %}
+
+            <section class="card score-card" aria-label="Creator score">
+                <div>
+                    <div class="detail-label">Creator score</div>
+                    <div class="score-number">
+                        {{ creator_score.score }}<span>/100</span>
+                    </div>
+                    <div class="score-change{% if creator_score.change < 0 %} negative{% endif %}">
+                        {% if creator_score.change > 0 %}+{% endif %}{{ creator_score.change }}
+                        points vs last week
+                    </div>
+                </div>
+
+                <div class="score-components">
+                    <div>
+                        <div class="component-heading">
+                            <span>Posting consistency</span>
+                            <span>{{ creator_score.components.posting_consistency|floatformat:0 }}</span>
+                        </div>
+                        <div class="component-track">
+                            <div class="component-fill" style="width: {{ creator_score.components.posting_consistency }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="component-heading">
+                            <span>Engagement trend</span>
+                            <span>{{ creator_score.components.engagement_trend|floatformat:0 }}</span>
+                        </div>
+                        <div class="component-track">
+                            <div class="component-fill" style="width: {{ creator_score.components.engagement_trend }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="component-heading">
+                            <span>Follower growth</span>
+                            <span>{{ creator_score.components.follower_growth|floatformat:0 }}</span>
+                        </div>
+                        <div class="component-track">
+                            <div class="component-fill" style="width: {{ creator_score.components.follower_growth }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="component-heading">
+                            <span>Recent activity</span>
+                            <span>{{ creator_score.components.activity|floatformat:0 }}</span>
+                        </div>
+                        <div class="component-track">
+                            <div class="component-fill" style="width: {{ creator_score.components.activity }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="score-explanations">
+                        {% for explanation in creator_score.explanations %}
+                            <div class="score-reason">
+                                {{ explanation.text }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="card timing-card" aria-label="Best posting times">
+                <div class="timing-header">
+                    <div>
+                        <div class="detail-label">Personalized timing</div>
+                        <h2>Best times to post</h2>
+                    </div>
+                    <div class="timezone-label">
+                        Times shown in {{ best_posting_times.timezone }}
+                    </div>
+                </div>
+
+                {% if best_posting_times.recommendations %}
+                    <div class="timing-list">
+                        {% for slot in best_posting_times.recommendations %}
+                            <article class="timing-slot">
+                                <div class="timing-day">
+                                    {{ slot.day_name }}
+                                </div>
+                                <div class="timing-hour">
+                                    {{ slot.time_label }}
+                                </div>
+                                <div class="timing-engagement">
+                                    {{ slot.avg_engagement|floatformat:1 }}
+                                    average engagements<br>
+                                    {{ slot.sample_size }}
+                                    historical post{{ slot.sample_size|pluralize }}
+                                </div>
+                                <div class="confidence">
+                                    {{ slot.confidence_label }} confidence
+                                    · {{ slot.confidence_score }}%
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="timing-empty">
+                        Synchronize videos with publishing dates to unlock
+                        personalized posting-time recommendations.
+                    </div>
+                {% endif %}
+            </section>
+
+            <section class="growth-grid" aria-label="Daily growth">
+                {% if daily_growth.today %}
+                    <article class="growth-metric">
+                        <div class="detail-label">Followers</div>
+                        <div class="growth-value">
+                            {{ daily_growth.today.follower_count }}
+                        </div>
+                        {% if daily_growth.has_comparison %}
+                            <div class="growth-delta{% if daily_growth.deltas.follower_count < 0 %} negative{% endif %}">
+                                {% if daily_growth.deltas.follower_count > 0 %}+{% endif %}{{ daily_growth.deltas.follower_count }}
+                                since yesterday
+                            </div>
+                        {% endif %}
+                    </article>
+
+                    <article class="growth-metric">
+                        <div class="detail-label">Profile likes</div>
+                        <div class="growth-value">
+                            {{ daily_growth.today.likes_count }}
+                        </div>
+                        {% if daily_growth.has_comparison %}
+                            <div class="growth-delta{% if daily_growth.deltas.likes_count < 0 %} negative{% endif %}">
+                                {% if daily_growth.deltas.likes_count > 0 %}+{% endif %}{{ daily_growth.deltas.likes_count }}
+                                since yesterday
+                            </div>
+                        {% endif %}
+                    </article>
+
+                    <article class="growth-metric">
+                        <div class="detail-label">Videos</div>
+                        <div class="growth-value">
+                            {{ daily_growth.today.video_count }}
+                        </div>
+                        {% if daily_growth.has_comparison %}
+                            <div class="growth-delta{% if daily_growth.deltas.video_count < 0 %} negative{% endif %}">
+                                {% if daily_growth.deltas.video_count > 0 %}+{% endif %}{{ daily_growth.deltas.video_count }}
+                                since yesterday
+                            </div>
+                        {% endif %}
+                    </article>
+
+                    <article class="growth-metric">
+                        <div class="detail-label">Avg. engagement</div>
+                        <div class="growth-value">
+                            {{ daily_growth.today.avg_engagement_rate|floatformat:2 }}%
+                        </div>
+                        {% if daily_growth.has_comparison %}
+                            <div class="growth-delta{% if daily_growth.deltas.avg_engagement_rate < 0 %} negative{% endif %}">
+                                {% if daily_growth.deltas.avg_engagement_rate > 0 %}+{% endif %}{{ daily_growth.deltas.avg_engagement_rate|floatformat:2 }}
+                                pts since yesterday
+                            </div>
+                        {% endif %}
+                    </article>
+                {% else %}
+                    <div class="growth-metric growth-empty">
+                        Daily growth tracking will appear after the next
+                        successful synchronization.
+                    </div>
+                {% endif %}
+            </section>
 
             <div class="grid">
                 <section class="card profile-card">

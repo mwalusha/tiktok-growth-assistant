@@ -222,6 +222,28 @@ TIKTOK_REDIRECT_URI = os.getenv(
     "",
 ).strip()
 
+OPENAI_API_KEY = os.getenv(
+    "OPENAI_API_KEY",
+    "",
+).strip()
+
+OPENAI_MODEL = os.getenv(
+    "OPENAI_MODEL",
+    "gpt-5.6-sol",
+).strip()
+
+OPENAI_TIMEOUT_SECONDS = int(
+    os.getenv("OPENAI_TIMEOUT_SECONDS", "60")
+)
+
+AI_CHAT_MAX_VIDEOS = int(os.getenv("AI_CHAT_MAX_VIDEOS", "500"))
+AI_CHAT_MAX_SNAPSHOTS = int(
+    os.getenv("AI_CHAT_MAX_SNAPSHOTS", "365")
+)
+AI_CHAT_HISTORY_MESSAGES = int(
+    os.getenv("AI_CHAT_HISTORY_MESSAGES", "16")
+)
+
 
 LOGGING = {
     "version": 1,

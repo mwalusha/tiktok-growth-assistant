@@ -35,6 +35,51 @@ urlpatterns = [
     name="create-content-idea",
     ),
     path(
+    "content/coach/",
+    views.content_coach,
+    name="content-coach",
+    ),
+    path(
+    "content/coach/save/",
+    views.save_generated_idea,
+    name="save-generated-idea",
+    ),
+    path(
+    "content/viral-score/",
+    views.viral_predictor,
+    name="viral-predictor",
+    ),
+    path(
+    "content/calendar/",
+    views.content_calendar,
+    name="content-calendar",
+    ),
+    path(
+    "insights/trends/",
+    views.trend_hunter,
+    name="trend-hunter",
+    ),
+    path(
+    "insights/peers/",
+    views.peer_benchmarks,
+    name="peer-benchmarks",
+    ),
+    path(
+    "assistant/",
+    views.chat_assistant,
+    name="chat-assistant",
+    ),
+    path(
+    "insights/peers/invite/<uuid:token>/",
+    views.accept_peer_invite,
+    name="accept-peer-invite",
+    ),
+    path(
+    "insights/peers/<int:comparison_id>/revoke/",
+    views.revoke_peer_comparison,
+    name="revoke-peer-comparison",
+    ),
+    path(
     "content/<int:idea_id>/edit/",
     views.edit_content_idea,
     name="edit-content-idea",
