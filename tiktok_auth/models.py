@@ -13,6 +13,7 @@ class TikTokAccount(models.Model):
     )
 
     avatar_url = models.URLField(
+        max_length=1000,
         blank=True,
     )
 
