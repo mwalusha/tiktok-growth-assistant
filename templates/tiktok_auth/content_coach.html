@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Content Coach | TikTok Growth Assistant</title>
+    <title>Content Coach | TikTok Growth Assistant</title>
     <style>
         :root {
             --background: #07080d;
@@ -168,11 +168,31 @@
             {% endif %}
 
             <div class="eyebrow">Grounded in your performance</div>
-            <h1>AI Content Coach</h1>
+            <h1>Content Coach</h1>
             <p class="intro">
-                Generate five ideas using patterns from your ten
-                highest-viewed and ten most recent synced TikTok videos.
+                Generate five offline, evidence-based ideas from your
+                synchronized TikTok history. No AI configuration is required.
             </p>
+
+            {% if analytics.videos_analyzed %}
+                <p class="intro">
+                    Current evidence:
+                    {% if analytics.best_topic %}
+                        {{ analytics.best_topic.topic|title }} is your leading
+                        topic across {{ analytics.best_topic.video_count }}
+                        video{{ analytics.best_topic.video_count|pluralize }}.
+                    {% endif %}
+                    {% if analytics.best_video_length %}
+                        Your strongest duration is
+                        {{ analytics.best_video_length.label }}.
+                    {% endif %}
+                </p>
+            {% else %}
+                <div class="message">
+                    Sync your TikTok performance first. The coach will only
+                    generate ideas from stored video history.
+                </div>
+            {% endif %}
 
             <form method="post" class="coach-form">
                 {% csrf_token %}

@@ -233,34 +233,44 @@ class ContentCoachViewTests(TestCase):
         session["tiktok_account_id"] = self.account.pk
         session.save()
 
-    @patch("tiktok_auth.views.generate_content_ideas")
-    def test_generation_is_synchronous_and_renders_ideas(
-        self,
-        generate,
-    ):
-        generate.return_value = [
-            {
-                "title": "A grounded idea",
-                "hook": "Stop making this mistake",
-                "caption": "Try this instead.",
-                "hashtags_text": "#Python #Tips #Learn",
-                "why_it_fits": "Your tutorials get the most views.",
-            }
-        ]
+    def test_generation_is_local_and_saves_ideas(self):
+        TikTokVideo.objects.create(
+            account=self.account,
+            video_id="coach-local-history",
+            title="Python tutorial",
+            description="How to learn Python #tutorial",
+            duration=18,
+            view_count=1000,
+            like_count=100,
+            posted_at=timezone.now(),
+        )
 
         response = self.client.post(
             reverse("content-coach"),
             {"niche": "Python for beginners"},
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "A grounded idea")
+        self.assertRedirects(response, reverse("content-planner"))
         self.account.refresh_from_db()
         self.assertEqual(
             self.account.niche,
             "Python for beginners",
         )
-        generate.assert_called_once()
+        self.assertEqual(self.account.content_ideas.count(), 5)
+        self.assertTrue(
+            self.account.content_ideas.filter(is_generated=True).exists()
+        )
+
+    def test_content_coach_without_history_never_requires_api_key(self):
+        response = self.client.post(
+            reverse("content-coach"),
+            {"niche": "Python for beginners"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Sync your TikTok videos before using the content coach.",
+        )
 
     def test_saves_selected_generated_idea_to_planner(self):
         response = self.client.post(

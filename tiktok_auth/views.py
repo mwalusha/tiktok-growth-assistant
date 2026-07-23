@@ -809,7 +809,7 @@ def content_coach(request):
         )
         return redirect("home")
 
-    generated_ideas = []
+    analytics = get_account_analytics(account)
 
     if request.method == "POST":
         form = ContentCoachForm(request.POST)
@@ -823,17 +823,26 @@ def content_coach(request):
                     update_fields=["niche", "updated_at"]
                 )
 
-            try:
-                generated_ideas = generate_content_ideas(
-                    account
+            if not analytics["videos_analyzed"]:
+                messages.warning(
+                    request,
+                    "Sync your TikTok videos before using the content coach.",
                 )
-            except AIContentCoachError as exc:
-                logger.warning(
-                    "Content coach generation failed for account %s: %s",
-                    account.pk,
-                    exc,
+            else:
+                ideas = generate_personalized_content_ideas(
+                    account, analytics, count=5
                 )
-                messages.error(request, str(exc))
+                if ideas:
+                    messages.success(
+                        request,
+                        f"{len(ideas)} evidence-based ideas were saved.",
+                    )
+                else:
+                    messages.info(
+                        request,
+                        "Your current personalized ideas are already saved.",
+                    )
+                return redirect("content-planner")
     else:
         form = ContentCoachForm(
             initial={"niche": account.niche}
@@ -845,7 +854,8 @@ def content_coach(request):
         {
             "account": account,
             "form": form,
-            "generated_ideas": generated_ideas,
+            "generated_ideas": [],
+            "analytics": analytics,
         },
     )
 
