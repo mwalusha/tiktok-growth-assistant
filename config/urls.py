@@ -33,4 +33,8 @@ urlpatterns = [
         tiktok_verification,
         name="tiktok-verification",
     ),
+       path(
+        "",
+        include("pages.urls")
+    ),
 ]

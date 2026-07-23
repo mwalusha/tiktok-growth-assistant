@@ -54,6 +54,7 @@ INSTALLED_APPS = [
 
     # Local apps
     "tiktok_auth",
+    "pages",
 ]
 
 
@@ -96,7 +97,7 @@ TEMPLATES = [
             "DjangoTemplates"
         ),
 
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
 
         "APP_DIRS": True,
 
