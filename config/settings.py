@@ -17,8 +17,6 @@ load_dotenv(BASE_DIR / ".env")
 
 
 
-
-
 # ============================================================
 # SECURITY
 # ============================================================
@@ -223,3 +221,30 @@ TIKTOK_REDIRECT_URI = os.getenv(
     "TIKTOK_REDIRECT_URI",
     "",
 ).strip()
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "tiktok_auth": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}
