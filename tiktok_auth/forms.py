@@ -22,6 +22,15 @@ class GeneratedIdeaSaveForm(forms.Form):
     hook = forms.CharField(max_length=300)
     caption = forms.CharField()
     hashtags = forms.CharField(max_length=500)
+    reason = forms.CharField(required=False)
+    suggested_length = forms.CharField(
+        max_length=100,
+        required=False,
+    )
+    suggested_posting_time = forms.CharField(
+        max_length=160,
+        required=False,
+    )
 
 
 class ViralPredictorForm(forms.Form):
@@ -74,6 +83,9 @@ class ContentIdeaForm(forms.ModelForm):
             "planned_date",
             "status",
             "notes",
+            "reason",
+            "suggested_length",
+            "suggested_posting_time",
         ]
 
         widgets = {

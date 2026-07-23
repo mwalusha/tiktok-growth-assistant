@@ -302,6 +302,8 @@ def get_all_tiktok_videos(
 
     all_videos = []
     cursor = 0
+    seen_cursors = set()
+    seen_video_ids = set()
 
     for _ in range(max_pages):
         data = get_tiktok_videos(
@@ -312,16 +314,25 @@ def get_all_tiktok_videos(
 
         videos = data.get("videos", [])
 
-        all_videos.extend(videos)
+        for video in videos:
+            video_id = str(video.get("id", "")).strip()
+            if video_id and video_id not in seen_video_ids:
+                seen_video_ids.add(video_id)
+                all_videos.append(video)
 
         if not data.get("has_more"):
             break
 
         next_cursor = data.get("cursor")
 
-        if next_cursor is None or next_cursor == cursor:
+        if (
+            next_cursor is None
+            or next_cursor == cursor
+            or next_cursor in seen_cursors
+        ):
             break
 
+        seen_cursors.add(cursor)
         cursor = next_cursor
 
     return all_videos

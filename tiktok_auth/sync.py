@@ -1,5 +1,4 @@
 import logging
-import re
 from datetime import timedelta
 from datetime import datetime, timezone as datetime_timezone
 from decimal import Decimal
@@ -18,28 +17,16 @@ from .services import (
     get_tiktok_profile,
     refresh_access_token,
 )
+from .utils import extract_hashtags
 
 
 logger = logging.getLogger(__name__)
 TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
-HASHTAG_PATTERN = re.compile(r"(?<!\w)#([\w]+)", re.UNICODE)
-
-
-def extract_hashtags(description: str) -> list[str]:
-    """Return unique hashtag names, in the order used in the caption."""
-
-    hashtags = []
-    seen = set()
-
-    for match in HASHTAG_PATTERN.finditer(description or ""):
-        hashtag = match.group(1)
-        comparison_value = hashtag.casefold()
-
-        if comparison_value not in seen:
-            seen.add(comparison_value)
-            hashtags.append(hashtag)
-
-    return hashtags
+def safe_non_negative_int(value) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError, OverflowError):
+        return 0
 
 
 def ensure_valid_access_token(account: TikTokAccount) -> str:
@@ -168,6 +155,9 @@ def calculate_snapshot_metrics(
 
     return {
         "total_views": total_views,
+        "average_video_views": (
+            total_views / len(videos) if videos else 0
+        ),
         "total_video_likes": total_video_likes,
         "total_comments": total_comments,
         "total_shares": total_shares,
@@ -213,21 +203,17 @@ def sync_tiktok_performance(
         "is_verified",
         account.is_verified,
     )
-    account.follower_count = profile.get(
-        "follower_count",
-        0,
+    account.follower_count = safe_non_negative_int(
+        profile.get("follower_count")
     )
-    account.following_count = profile.get(
-        "following_count",
-        0,
+    account.following_count = safe_non_negative_int(
+        profile.get("following_count")
     )
-    account.likes_count = profile.get(
-        "likes_count",
-        0,
+    account.likes_count = safe_non_negative_int(
+        profile.get("likes_count")
     )
-    account.video_count = profile.get(
-        "video_count",
-        0,
+    account.video_count = safe_non_negative_int(
+        profile.get("video_count")
     )
 
     videos = get_all_tiktok_videos(access_token)
@@ -267,9 +253,9 @@ def sync_tiktok_performance(
                 "",
             ) or ""
             video, created = TikTokVideo.objects.update_or_create(
+                account=account,
                 video_id=video_id,
                 defaults={
-                    "account": account,
                     "title": video_data.get("title", "") or "",
                     "description": description,
                     "hashtags": extract_hashtags(description),
@@ -285,26 +271,21 @@ def sync_tiktok_performance(
                         "embed_link",
                         "",
                     ) or "",
-                    "duration": video_data.get(
-                        "duration",
-                        0,
-                    ) or 0,
-                    "view_count": video_data.get(
-                        "view_count",
-                        0,
-                    ) or 0,
-                    "like_count": video_data.get(
-                        "like_count",
-                        0,
-                    ) or 0,
-                    "comment_count": video_data.get(
-                        "comment_count",
-                        0,
-                    ) or 0,
-                    "share_count": video_data.get(
-                        "share_count",
-                        0,
-                    ) or 0,
+                    "duration": safe_non_negative_int(
+                        video_data.get("duration")
+                    ),
+                    "view_count": safe_non_negative_int(
+                        video_data.get("view_count")
+                    ),
+                    "like_count": safe_non_negative_int(
+                        video_data.get("like_count")
+                    ),
+                    "comment_count": safe_non_negative_int(
+                        video_data.get("comment_count")
+                    ),
+                    "share_count": safe_non_negative_int(
+                        video_data.get("share_count")
+                    ),
                     "posted_at": unix_timestamp_to_datetime(
                         video_data.get("create_time")
                     ),
@@ -335,6 +316,7 @@ def sync_tiktok_performance(
         )
 
     return {
+        "profile_updated": True,
         "profile": profile,
         "videos_received": len(videos),
         "videos_saved": created_count + updated_count,
@@ -342,4 +324,6 @@ def sync_tiktok_performance(
         "videos_updated": updated_count,
         "snapshot": snapshot,
         "snapshot_created": snapshot_created,
+        "snapshot_updated": not snapshot_created,
+        "synced_at": timezone.now(),
     }

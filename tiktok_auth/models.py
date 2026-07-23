@@ -97,6 +97,10 @@ class TikTokAccount(models.Model):
     def __str__(self):
         return self.display_name or self.open_id
 
+    @property
+    def snapshots(self):
+        return self.daily_snapshots
+
 class TikTokVideo(models.Model):
     account = models.ForeignKey(
         TikTokAccount,
@@ -104,10 +108,7 @@ class TikTokVideo(models.Model):
         related_name="videos",
     )
 
-    video_id = models.CharField(
-        max_length=255,
-        unique=True,
-    )
+    video_id = models.CharField(max_length=100)
 
     title = models.TextField(
         blank=True,
@@ -168,6 +169,22 @@ class TikTokVideo(models.Model):
 
     class Meta:
         ordering = ["-posted_at", "-view_count"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "video_id"],
+                name="unique_tiktok_video_per_account",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["account", "-posted_at"],
+                name="video_account_posted_idx",
+            ),
+            models.Index(
+                fields=["account", "-view_count"],
+                name="video_account_views_idx",
+            ),
+        ]
 
     def __str__(self):
         return self.title or self.video_id
@@ -179,6 +196,10 @@ class TikTokVideo(models.Model):
             + self.comment_count
             + self.share_count
         )
+
+    @property
+    def total_engagements(self):
+        return self.total_engagement
 
     @property
     def engagement_rate(self):
@@ -220,6 +241,8 @@ class TikTokDailySnapshot(models.Model):
         default=0,
     )
 
+    average_video_views = models.FloatField(default=0)
+
     total_video_likes = models.PositiveBigIntegerField(
         default=0,
     )
@@ -257,6 +280,22 @@ class TikTokDailySnapshot(models.Model):
 
     def __str__(self):
         return f"{self.account} — {self.date}"
+
+    @property
+    def snapshot_date(self):
+        return self.date
+
+    @property
+    def total_video_views(self):
+        return self.total_views
+
+    @property
+    def average_engagement_rate(self):
+        return self.avg_engagement_rate
+
+
+# Canonical name for new code; the historical name remains migration-safe.
+TikTokAccountSnapshot = TikTokDailySnapshot
 
 
 class WeeklyReport(models.Model):
@@ -396,6 +435,7 @@ class ContentIdea(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         READY = "ready", "Ready to Post"
+        FILMED = "filmed", "Filmed"
         PUBLISHED = "published", "Published"
         ARCHIVED = "archived", "Archived"
 
@@ -464,6 +504,34 @@ class ContentIdea(models.Model):
     )
 
     notes = models.TextField(
+        blank=True,
+    )
+
+    reason = models.TextField(
+        blank=True,
+    )
+
+    suggested_length = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    suggested_posting_time = models.CharField(
+        max_length=160,
+        blank=True,
+    )
+
+    is_generated = models.BooleanField(default=False)
+
+    generation_reason = models.TextField(blank=True)
+
+    suggested_duration = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    suggested_posting_day = models.CharField(
+        max_length=20,
         blank=True,
     )
 

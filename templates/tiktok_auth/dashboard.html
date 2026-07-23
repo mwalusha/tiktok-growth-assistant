@@ -183,6 +183,23 @@
             box-shadow: 0 0 14px var(--green);
         }
 
+        .dashboard-actions {
+            display: grid;
+            justify-items: end;
+            gap: 10px;
+        }
+
+        .sync-button {
+            padding: 11px 15px;
+            border: 0;
+            border-radius: 10px;
+            color: #07080d;
+            font-size: 13px;
+            font-weight: 850;
+            cursor: pointer;
+            background: var(--cyan);
+        }
+
         .warning {
             margin-bottom: 22px;
             padding: 16px;
@@ -416,6 +433,79 @@
             background: rgba(37,244,238,.05);
         }
 
+        .performance-card {
+            margin-bottom: 20px;
+            padding: 25px;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 11px;
+            margin-top: 17px;
+        }
+
+        .summary-metric,
+        .insight-box {
+            padding: 15px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: rgba(255,255,255,.035);
+        }
+
+        .summary-metric strong,
+        .insight-box strong {
+            display: block;
+            margin-top: 6px;
+            font-size: 19px;
+        }
+
+        .insight-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 11px;
+            margin-top: 11px;
+        }
+
+        .video-rankings {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 13px;
+            margin-top: 13px;
+        }
+
+        .ranking-list {
+            padding: 17px;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            background: rgba(255,255,255,.025);
+        }
+
+        .ranking-list h3 {
+            margin-bottom: 10px;
+        }
+
+        .ranking-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 9px 0;
+            border-top: 1px solid rgba(255,255,255,.06);
+            font-size: 12px;
+        }
+
+        .ranking-row span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ranking-row strong {
+            flex: none;
+            color: var(--cyan);
+        }
+
         .growth-metric {
             padding: 20px;
             border: 1px solid var(--border);
@@ -606,6 +696,11 @@
             .weekly-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+
+            .metric-grid,
+            .insight-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         @media (max-width: 590px) {
@@ -634,6 +729,12 @@
             }
 
             .weekly-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .metric-grid,
+            .insight-grid,
+            .video-rankings {
                 grid-template-columns: 1fr;
             }
 
@@ -710,16 +811,43 @@
                     </p>
                 </div>
 
-                <div class="status">
-                    <span class="status-dot"></span>
-                    TikTok connected
+                <div class="dashboard-actions">
+                    <div class="status">
+                        <span class="status-dot"></span>
+                        TikTok connected
+                    </div>
+                    <form
+                        method="post"
+                        action="{% url 'sync-tiktok-performance' %}"
+                    >
+                        {% csrf_token %}
+                        <button class="sync-button" type="submit">
+                            Sync your TikTok data
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'generate-content-ideas' %}">
+                        {% csrf_token %}
+                        <button class="sync-button" type="submit">
+                            Generate ideas from my TikTok
+                        </button>
+                    </form>
+                    <a class="home-link" href="{% url 'content-planner' %}">
+                        Open content planner
+                    </a>
                 </div>
             </header>
 
             {% if token_expired %}
                 <div class="warning">
-                    Your TikTok access token has expired. Automatic token
-                    refresh will be added in the next step.
+                    Your TikTok connection could not be refreshed. Reconnect
+                    the account, then run the sync again.
+                </div>
+            {% endif %}
+
+            {% if analytics.videos_analyzed and not analytics.has_enough_data %}
+                <div class="warning">
+                    Preliminary insights: sync at least three public videos
+                    before treating these recommendations as a strong pattern.
                 </div>
             {% endif %}
 
@@ -931,6 +1059,89 @@
                         successful synchronization.
                     </div>
                 {% endif %}
+            </section>
+
+            <section class="card performance-card" aria-label="Video performance">
+                <div class="detail-label">What is working</div>
+                <h2>Performance summary</h2>
+
+                <div class="metric-grid">
+                    <div class="summary-metric">
+                        <div class="detail-label">Average views</div>
+                        <strong>{{ analytics.average_views|floatformat:0 }}</strong>
+                    </div>
+                    <div class="summary-metric">
+                        <div class="detail-label">Average likes</div>
+                        <strong>{{ analytics.average_likes|floatformat:0 }}</strong>
+                    </div>
+                    <div class="summary-metric">
+                        <div class="detail-label">Average comments</div>
+                        <strong>{{ analytics.average_comments|floatformat:0 }}</strong>
+                    </div>
+                    <div class="summary-metric">
+                        <div class="detail-label">Average shares</div>
+                        <strong>{{ analytics.average_shares|floatformat:0 }}</strong>
+                    </div>
+                </div>
+
+                <div class="insight-grid">
+                    <div class="insight-box">
+                        <div class="detail-label">Best topic</div>
+                        <strong>
+                            {% if analytics.best_topic %}
+                                {{ analytics.best_topic.topic|title }}
+                            {% else %}Not enough topic data{% endif %}
+                        </strong>
+                    </div>
+                    <div class="insight-box">
+                        <div class="detail-label">Best video length</div>
+                        <strong>
+                            {% if analytics.best_length %}
+                                {{ analytics.best_length.label }}
+                            {% else %}Not enough duration data{% endif %}
+                        </strong>
+                    </div>
+                    <div class="insight-box">
+                        <div class="detail-label">Best day and time</div>
+                        <strong>
+                            {% if best_posting_times.best %}
+                                {{ best_posting_times.best.day_name }}
+                                at {{ best_posting_times.best.time_label }}
+                            {% elif analytics.best_day %}
+                                {{ analytics.best_day.day }}
+                            {% else %}Not enough posting history{% endif %}
+                        </strong>
+                    </div>
+                </div>
+
+                <div class="video-rankings">
+                    <div class="ranking-list">
+                        <h3>Top five videos</h3>
+                        {% for item in analytics.top_videos %}
+                            <div class="ranking-row">
+                                <span>
+                                    {{ item.video.title|default:item.video.description|default:item.video.video_id }}
+                                </span>
+                                <strong>{{ item.video.view_count }} views · {{ item.engagement_rate|floatformat:2 }}%</strong>
+                            </div>
+                        {% empty %}
+                            <p class="header-description">No synced videos yet.</p>
+                        {% endfor %}
+                    </div>
+                    <div class="ranking-list">
+                        <h3>Lowest-performing videos</h3>
+                        {% for item in analytics.lowest_videos %}
+                            <div class="ranking-row">
+                                <span>
+                                    {{ item.video.title|default:item.video.description|default:item.video.video_id }}
+                                </span>
+                                <strong>{{ item.video.view_count }} views · {{ item.engagement_rate|floatformat:2 }}%</strong>
+                            </div>
+                        {% empty %}
+                            <p class="header-description">No synced videos yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
             </section>
 
             <div class="grid">

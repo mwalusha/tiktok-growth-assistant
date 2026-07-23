@@ -45,6 +45,11 @@ urlpatterns = [
     name="save-generated-idea",
     ),
     path(
+    "content/generate/",
+    views.generate_and_save_content_ideas,
+    name="generate-content-ideas",
+    ),
+    path(
     "content/viral-score/",
     views.viral_predictor,
     name="viral-predictor",
@@ -88,6 +93,11 @@ urlpatterns = [
     "content/<int:idea_id>/delete/",
     views.delete_content_idea,
     name="delete-content-idea",
+    ),
+    path(
+        "content/<int:idea_id>/status/",
+        views.update_content_idea_status,
+        name="update-content-idea-status",
     ),
     path(
     "performance/sync/",

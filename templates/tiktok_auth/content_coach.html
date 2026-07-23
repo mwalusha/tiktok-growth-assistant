@@ -184,7 +184,7 @@
                     {% endif %}
                 </div>
                 <button class="generate" type="submit">
-                    ✨ Generate ideas
+                    ✨ Generate ideas from my TikTok
                 </button>
             </form>
 
@@ -201,8 +201,16 @@
                                 {{ idea.hashtags_text }}
                             </div>
                             <p class="reason">
-                                <strong>Why it fits:</strong>
-                                {{ idea.why_it_fits }}
+                                <strong>What your results suggest:</strong>
+                                {{ idea.performance_insight }}
+                            </p>
+                            <p class="reason">
+                                <strong>Suggested length:</strong>
+                                {{ idea.suggested_length }}
+                            </p>
+                            <p class="reason">
+                                <strong>Suggested posting time:</strong>
+                                {{ idea.suggested_posting_time }}
                             </p>
                             <form
                                 method="post"
@@ -213,6 +221,9 @@
                                 <input type="hidden" name="hook" value="{{ idea.hook }}">
                                 <input type="hidden" name="caption" value="{{ idea.caption }}">
                                 <input type="hidden" name="hashtags" value="{{ idea.hashtags_text }}">
+                                <input type="hidden" name="reason" value="{{ idea.performance_insight }}">
+                                <input type="hidden" name="suggested_length" value="{{ idea.suggested_length }}">
+                                <input type="hidden" name="suggested_posting_time" value="{{ idea.suggested_posting_time }}">
                                 <button class="save" type="submit">
                                     Save to planner
                                 </button>

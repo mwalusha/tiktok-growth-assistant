@@ -1,7 +1,11 @@
 import json
+from statistics import median
 
 import requests
 from django.conf import settings
+
+from .analytics import get_account_analytics
+from .posting_times import get_best_posting_times
 
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
@@ -63,7 +67,12 @@ def video_context(video) -> dict:
     }
 
 
-def build_prompt(top, recent, niche: str) -> str:
+def build_prompt(
+    top,
+    recent,
+    niche: str,
+    performance_summary=None,
+) -> str:
     """
     Build bounded context from the creator's own synced video history.
 
@@ -77,13 +86,16 @@ def build_prompt(top, recent, niche: str) -> str:
         "recent_videos": [
             video_context(video) for video in recent
         ],
+        "performance_summary": performance_summary or {},
     }
     return (
         "Create exactly five distinct TikTok content ideas for this "
         "creator. Ground the ideas in repeatable topics, hooks, formats, "
         "and audience signals visible in their top and recent videos. "
         "Balance proven patterns with fresh angles; do not merely rewrite "
-        "an existing caption. Never invent performance claims or facts "
+        "an existing caption. Prioritize strong historical topics that "
+        "have not appeared in recent_videos, so the ideas fill real topic "
+        "gaps without abandoning proven formats. Never invent performance claims or facts "
         "about the creator. Keep each hook under 300 characters, each "
         "caption concise, and provide 3 to 8 relevant hashtags. "
         "why_it_fits must briefly cite the supplied patterns or metrics. "
@@ -279,5 +291,62 @@ def generate_content_ideas(account) -> list[dict]:
             "grounded ideas."
         )
 
-    prompt = build_prompt(top, recent, account.niche)
-    return parse_ideas(call_llm_api(prompt))
+    analytics = get_account_analytics(account)
+    timing_result = get_best_posting_times(
+        account,
+        limit=1,
+    )
+    recent_topics = {
+        str(hashtag).lstrip("#").casefold()
+        for video in recent
+        for hashtag in (video.hashtags or [])
+    }
+    topic_gaps = [
+        topic["topic"]
+        for topic in analytics["topic_performance"]
+        if topic["topic"].casefold() not in recent_topics
+    ][:10]
+    performance_summary = {
+        "best_topic": analytics["best_topic"],
+        "best_video_length": analytics[
+            "best_video_length"
+        ],
+        "best_posting_day": analytics[
+            "best_posting_day"
+        ],
+        "best_posting_time": timing_result["best"],
+        "topics_not_posted_recently": topic_gaps,
+    }
+    prompt = build_prompt(
+        top,
+        recent,
+        account.niche,
+        performance_summary=performance_summary,
+    )
+    ideas = parse_ideas(call_llm_api(prompt))
+    strong_durations = [
+        video.duration for video in top[:5] if video.duration
+    ]
+    suggested_length = "Use your usual winning length"
+
+    if strong_durations:
+        midpoint = round(median(strong_durations))
+        suggested_length = (
+            f"{max(5, midpoint - 3)}–{midpoint + 3} seconds"
+        )
+
+    timing = timing_result["best"]
+    suggested_posting_time = (
+        f"{timing['day_name']} at {timing['time_label']} UTC"
+        if timing
+        else "Build more posting history first"
+    )
+
+    for idea in ideas:
+        idea["performance_insight"] = idea["why_it_fits"]
+        idea["suggested_length"] = suggested_length
+        idea["suggested_posting_time"] = (
+            suggested_posting_time
+        )
+
+    return ideas

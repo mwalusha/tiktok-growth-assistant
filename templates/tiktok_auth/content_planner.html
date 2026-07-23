@@ -516,11 +516,25 @@
                         Check draft score
                     </a>
 
+                    <form
+                        method="post"
+                        action="{% url 'generate-content-ideas' %}"
+                    >
+                        {% csrf_token %}
+                        <button
+                            type="submit"
+                            class="coach-button"
+                            style="cursor:pointer"
+                        >
+                            ✨ Generate ideas from my TikTok
+                        </button>
+                    </form>
+
                     <a
                         href="{% url 'content-coach' %}"
                         class="coach-button"
                     >
-                        ✨ Generate with AI
+                        Preview AI coach
                     </a>
 
                     <a
@@ -592,6 +606,11 @@
                                 <span class="badge badge-category">
                                     {{ idea.get_category_display }}
                                 </span>
+                                {% if idea.is_generated %}
+                                    <span class="badge badge-ready">
+                                        Personalized
+                                    </span>
+                                {% endif %}
 
                                 <span
                                     class="
@@ -626,6 +645,27 @@
                                 </p>
                             {% endif %}
 
+                            {% if idea.generation_reason or idea.reason %}
+                                <p class="empty-text">
+                                    <strong>Why this idea:</strong>
+                                    {{ idea.generation_reason|default:idea.reason }}
+                                </p>
+                            {% endif %}
+
+                            {% if idea.suggested_duration or idea.suggested_length %}
+                                <p class="empty-text">
+                                    <strong>Suggested length:</strong>
+                                    {{ idea.suggested_duration|default:idea.suggested_length }}
+                                </p>
+                            {% endif %}
+
+                            {% if idea.suggested_posting_time %}
+                                <p class="empty-text">
+                                    <strong>Suggested posting time:</strong>
+                                    {{ idea.suggested_posting_time }}
+                                </p>
+                            {% endif %}
+
                             {% if idea.planned_date %}
                                 <div class="planned-date">
                                     Planned:
@@ -645,6 +685,26 @@
                             >
                                 Edit idea
                             </a>
+
+                            {% if idea.status == 'draft' %}
+                                <form method="post" action="{% url 'update-content-idea-status' idea.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="ready">
+                                    <button class="filter-button" type="submit">Mark planned</button>
+                                </form>
+                            {% elif idea.status == 'ready' %}
+                                <form method="post" action="{% url 'update-content-idea-status' idea.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="filmed">
+                                    <button class="filter-button" type="submit">Mark filmed</button>
+                                </form>
+                            {% elif idea.status == 'filmed' %}
+                                <form method="post" action="{% url 'update-content-idea-status' idea.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="published">
+                                    <button class="filter-button" type="submit">Mark posted</button>
+                                </form>
+                            {% endif %}
 
                             <form
                                 method="post"

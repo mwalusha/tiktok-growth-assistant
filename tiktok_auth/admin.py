@@ -42,6 +42,7 @@ class ContentIdeaAdmin(admin.ModelAdmin):
         "account",
         "category",
         "status",
+        "is_generated",
         "planned_date",
         "created_at",
     )
@@ -49,6 +50,7 @@ class ContentIdeaAdmin(admin.ModelAdmin):
     list_filter = (
         "category",
         "status",
+        "is_generated",
     )
 
     search_fields = (
@@ -95,6 +97,7 @@ class TikTokDailySnapshotAdmin(admin.ModelAdmin):
         "follower_count",
         "likes_count",
         "video_count",
+        "average_video_views",
         "avg_engagement_rate",
     )
     list_filter = ("date",)
