@@ -14,6 +14,8 @@ from .services import (
     TikTokAPIError,
     exchange_code_for_token,
     get_tiktok_profile,
+    refresh_access_token,
+    revoke_access,
 )
 
 logger = logging.getLogger(__name__)
