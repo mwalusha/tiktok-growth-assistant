@@ -210,13 +210,16 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # ============================================================
 
 TIKTOK_CLIENT_KEY = os.getenv(
-    "TIKTOK_CLIENT_KEY"
-)
+    "TIKTOK_CLIENT_KEY",
+    "",
+).strip()
 
 TIKTOK_CLIENT_SECRET = os.getenv(
-    "TIKTOK_CLIENT_SECRET"
-)
+    "TIKTOK_CLIENT_SECRET",
+    "",
+).strip()
 
 TIKTOK_REDIRECT_URI = os.getenv(
-    "TIKTOK_REDIRECT_URI"
-)
+    "TIKTOK_REDIRECT_URI",
+    "",
+).strip()

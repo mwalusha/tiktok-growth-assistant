@@ -32,10 +32,10 @@ def connect_tiktok(request):
 
     query = urlencode(
         {
-            "client_key": settings.TIKTOK_CLIENT_KEY,
+            "client_key": settings.TIKTOK_CLIENT_KEY.strip(),
             "response_type": "code",
             "scope": "user.info.basic",
-            "redirect_uri": settings.TIKTOK_REDIRECT_URI,
+            "redirect_uri": settings.TIKTOK_REDIRECT_URI.strip(),
             "state": state,
         }
     )
